@@ -9,6 +9,7 @@ on:
       - 'tools/reference_ingest_render.py'
       - 'tools/reference_ingest_ocr.sh'
       - 'tools/reference_ingest_commit.sh'
+      - 'tools/check_markdown_math.py'
       - 'tools/tests/test_reference_ingest.py'
   pull_request_target:
     types: [opened, reopened]
@@ -29,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s tools/tests -p 'test_reference_ingest.py'
-          python -m py_compile tools/reference_ingest.py tools/reference_ingest_render.py
+          python -m py_compile tools/reference_ingest.py tools/reference_ingest_render.py tools/check_markdown_math.py
           bash -n tools/reference_ingest_ocr.sh
           bash -n tools/reference_ingest_commit.sh
 
@@ -137,7 +138,7 @@ jobs:
           version="$(tesseract --version | head -n1 | sed -E 's/^tesseract[[:space:]]+//')"
           python trusted/tools/reference_ingest_render.py --repo-root work --plan-json "$PLAN_JSON" --ocr-dir "$OCR_DIR" --native-text "$NATIVE_TEXT" --tesseract-version "$version"
           python trusted/tools/reference_ingest.py validate-output --transcript "work/$OUTPUT_DIR/transcript.md" --manifest "work/$OUTPUT_DIR/manifest.json"
-          python trusted/scripts/check_markdown_math.py "work/$OUTPUT_DIR/transcript.md"
+          python trusted/tools/check_markdown_math.py "work/$OUTPUT_DIR/transcript.md"
           echo "transcript=$OUTPUT_DIR/transcript.md" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push exact generated output
