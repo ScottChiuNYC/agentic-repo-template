@@ -1,0 +1,141 @@
+name: Remote Safe Patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/remote-safe-patch.yml'
+      - 'tools/safe_patch.py'
+      - 'tools/remote_safe_patch.py'
+      - 'scripts/check_markdown_math.py'
+      - 'tools/tests/test_safe_patch.py'
+      - 'tools/tests/test_remote_safe_patch.py'
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test Safe Patch tooling
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_safe_patch.py'
+          python -m unittest discover -s tools/tests -p 'test_remote_safe_patch.py'
+          python -m py_compile tools/safe_patch.py tools/remote_safe_patch.py
+
+  apply:
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      github.event.comment.body == '/safe-patch' &&
+      github.event.comment.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    concurrency:
+      group: remote-safe-patch-pr-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Resolve pull request head
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({owner: context.repo.owner, repo: context.repo.repo, pull_number: context.issue.number});
+            const fullName = `${context.repo.owner}/${context.repo.repo}`;
+            if (!pr.head.repo || pr.head.repo.full_name !== fullName) return core.setFailed('Remote Safe Patch only accepts same-repository PR heads.');
+            if (pr.base.ref !== context.payload.repository.default_branch) return core.setFailed('Remote Safe Patch PR must target the default branch.');
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+
+      - name: Check out trusted executor
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          path: work
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify trusted validator and branch head
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          cmp --silent trusted/scripts/check_markdown_math.py work/scripts/check_markdown_math.py || { echo 'REMOTE_SAFE_PATCH_REJECTED_VALIDATOR_CHANGED' >&2; exit 3; }
+          remote_sha="$(git -C work ls-remote origin "refs/heads/${HEAD_REF}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$HEAD_SHA" ]] || { echo "REMOTE_SAFE_PATCH_REJECTED_HEAD_MOVED: expected ${HEAD_SHA}, found ${remote_sha}" >&2; exit 3; }
+          git -C work switch --create "remote-safe-patch-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "$HEAD_SHA"
+
+      - name: Apply trusted remote Safe Patch
+        id: apply
+        env:
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          RESULT_JSON: ${{ runner.temp }}/remote-safe-patch-result.json
+        run: |
+          set -euo pipefail
+          python trusted/tools/remote_safe_patch.py apply --repo-root work --expected-head "$HEAD_SHA" --result-json "$RESULT_JSON" --write
+          target="$(python - "$RESULT_JSON" <<'PY'
+          import json, sys
+          print(json.load(open(sys.argv[1], encoding='utf-8'))['target'])
+          PY
+          )"
+          echo "target=${target}" >> "$GITHUB_OUTPUT"
+
+      - name: Remove request, commit, and push
+        id: push
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          TARGET: ${{ steps.apply.outputs.target }}
+        run: |
+          set -euo pipefail
+          git -C work config user.name 'github-actions[bot]'
+          git -C work config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C work add -- "$TARGET"
+          git -C work rm -r -- .github/safe-patch-request
+          git -C work diff --cached --check
+          git -C work commit -m 'Apply remote Safe Patch request'
+          [[ -z "$(git -C work status --porcelain)" ]] || { echo 'REMOTE_SAFE_PATCH_REJECTED_DIRTY_POST_COMMIT' >&2; exit 3; }
+          remote_sha="$(git -C work ls-remote origin "refs/heads/${HEAD_REF}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$HEAD_SHA" ]] || { echo 'REMOTE_SAFE_PATCH_REJECTED_HEAD_MOVED' >&2; exit 3; }
+          git -C work push origin "HEAD:refs/heads/${HEAD_REF}"
+          echo "commit_sha=$(git -C work rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Report result
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          TARGET: ${{ steps.apply.outputs.target }}
+          INPUT_HEAD: ${{ steps.pr.outputs.head_sha }}
+          OUTPUT_HEAD: ${{ steps.push.outputs.commit_sha }}
+        with:
+          script: |
+            const ok = process.env.PUSH_OUTCOME === 'success';
+            const body = ok
+              ? `REMOTE_SAFE_PATCH_SUCCESS target=${process.env.TARGET} input_head=${process.env.INPUT_HEAD} output_head=${process.env.OUTPUT_HEAD}. Re-fetch and validate the new PR head before merge.`
+              : `REMOTE_SAFE_PATCH_FAILED run=${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}.`;
+            await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body});

@@ -1,0 +1,8 @@
+build/
+dist/
+.git/
+.github/safe-patch-request/
+.github/reference-ingestion-request/
+ref/transcripts/
+__pycache__/
+*.pyc
