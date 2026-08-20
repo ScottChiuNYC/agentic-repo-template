@@ -1,0 +1,175 @@
+name: Reference Ingestion
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/reference-ingestion.yml'
+      - 'tools/reference_ingest.py'
+      - 'tools/reference_ingest_render.py'
+      - 'tools/reference_ingest_ocr.sh'
+      - 'tools/reference_ingest_commit.sh'
+      - 'tools/tests/test_reference_ingest.py'
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test reference ingestion tooling
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_reference_ingest.py'
+          python -m py_compile tools/reference_ingest.py tools/reference_ingest_render.py
+          bash -n tools/reference_ingest_ocr.sh
+          bash -n tools/reference_ingest_commit.sh
+
+  ingest:
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      startsWith(github.event.pull_request.title, '[reference-ingestion]') &&
+      github.event.pull_request.user.login == github.repository_owner
+    runs-on: ubuntu-latest
+    concurrency:
+      group: reference-ingestion-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Resolve exact PR head
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({owner: context.repo.owner, repo: context.repo.repo, pull_number: context.payload.pull_request.number});
+            const fullName = `${context.repo.owner}/${context.repo.repo}`;
+            if (!pr.head.repo || pr.head.repo.full_name !== fullName) return core.setFailed('Reference ingestion accepts only same-repository PR heads.');
+            if (pr.base.ref !== context.payload.repository.default_branch) return core.setFailed('Reference ingestion PR must target the default branch.');
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+
+      - name: Check out trusted executor
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Check out exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          path: work
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install OCR runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends poppler-utils tesseract-ocr tesseract-ocr-eng
+
+      - name: Validate request, source provenance, and exact head
+        id: plan
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PLAN_JSON: ${{ runner.temp }}/reference-plan.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_sha="$(git -C work ls-remote origin "refs/heads/${HEAD_REF}" | awk '{print $1}')"
+          [[ "$remote_sha" == "$HEAD_SHA" ]] || { echo 'REFERENCE_INGEST_REJECTED_HEAD_MOVED' >&2; exit 3; }
+          source="$(PYTHONPATH=trusted/tools python - <<'PY'
+          import tomllib, reference_ingest
+          with open('work/.github/reference-ingestion-request/request.toml', 'rb') as handle:
+              data = tomllib.load(handle)
+          print(reference_ingest.source_path(data.get('source')))
+          PY
+          )"
+          [[ -f "trusted/$source" ]] || { echo 'REFERENCE_INGEST_REJECTED_SOURCE_NOT_ON_MAIN' >&2; exit 3; }
+          cmp --silent "trusted/$source" "work/$source" || { echo 'REFERENCE_INGEST_REJECTED_SOURCE_CHANGED_ON_BRANCH' >&2; exit 3; }
+          total="$(pdfinfo "work/$source" | awk '/^Pages:/ {print $2}')"
+          [[ "$total" =~ ^[0-9]+$ ]] || { echo 'REFERENCE_INGEST_REJECTED_PDFINFO' >&2; exit 3; }
+          python trusted/tools/reference_ingest.py plan --repo-root work --total-pages "$total" --result-json "$PLAN_JSON"
+          git -C work switch --create "reference-ingestion-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "$HEAD_SHA"
+          python - "$PLAN_JSON" "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1], encoding='utf-8'))
+          with open(sys.argv[2], 'a', encoding='utf-8') as out:
+              for key in ('source', 'start_page', 'end_page', 'output_dir'):
+                  out.write(f'{key}={data[key]}\n')
+          PY
+
+      - name: OCR requested pages
+        env:
+          REPO_ROOT: work
+          SOURCE: ${{ steps.plan.outputs.source }}
+          START_PAGE: ${{ steps.plan.outputs.start_page }}
+          END_PAGE: ${{ steps.plan.outputs.end_page }}
+          OCR_DIR: ${{ runner.temp }}/reference-ocr
+          NATIVE_TEXT: ${{ runner.temp }}/reference-native.txt
+        run: bash trusted/tools/reference_ingest_ocr.sh
+
+      - name: Render and validate transcript
+        id: output
+        env:
+          PLAN_JSON: ${{ runner.temp }}/reference-plan.json
+          OCR_DIR: ${{ runner.temp }}/reference-ocr
+          NATIVE_TEXT: ${{ runner.temp }}/reference-native.txt
+          OUTPUT_DIR: ${{ steps.plan.outputs.output_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tesseract --version | head -n1 | sed -E 's/^tesseract[[:space:]]+//')"
+          python trusted/tools/reference_ingest_render.py --repo-root work --plan-json "$PLAN_JSON" --ocr-dir "$OCR_DIR" --native-text "$NATIVE_TEXT" --tesseract-version "$version"
+          python trusted/tools/reference_ingest.py validate-output --transcript "work/$OUTPUT_DIR/transcript.md" --manifest "work/$OUTPUT_DIR/manifest.json"
+          python trusted/scripts/check_markdown_math.py "work/$OUTPUT_DIR/transcript.md"
+          echo "transcript=$OUTPUT_DIR/transcript.md" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push exact generated output
+        id: push
+        env:
+          WORK_ROOT: work
+          OUTPUT_DIR: ${{ steps.plan.outputs.output_dir }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit_sha="$(bash trusted/tools/reference_ingest_commit.sh)"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Report result
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        env:
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          TRANSCRIPT: ${{ steps.output.outputs.transcript }}
+          INPUT_HEAD: ${{ steps.pr.outputs.head_sha }}
+          OUTPUT_HEAD: ${{ steps.push.outputs.commit_sha }}
+        with:
+          script: |
+            const ok = process.env.PUSH_OUTCOME === 'success';
+            if (ok) {
+              const clean = context.payload.pull_request.title.replace(/^\[reference-ingestion\]\s*/, '');
+              await github.rest.pulls.update({owner: context.repo.owner, repo: context.repo.repo, pull_number: context.payload.pull_request.number, title: clean});
+            }
+            const body = ok
+              ? `REFERENCE_INGEST_SUCCESS transcript=${process.env.TRANSCRIPT} input_head=${process.env.INPUT_HEAD} output_head=${process.env.OUTPUT_HEAD}. Re-fetch the final diff and validate the generated head before merge.`
+              : `REFERENCE_INGEST_FAILED run=${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}. Inspect Actions and branch state before retrying.`;
+            await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: context.payload.pull_request.number, body});
