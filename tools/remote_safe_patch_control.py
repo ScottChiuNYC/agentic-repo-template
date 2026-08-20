@@ -20,7 +20,7 @@ HARD_MAX_CHANGED_LINES = 80
 MAX_SNIPPET_BYTES = 32768
 FORBIDDEN_PREFIXES = (".github/workflows/", f"{REQUEST_DIR.as_posix()}/")
 FORBIDDEN_TARGETS = {
-    "scripts/check_markdown_math.py",
+    "tools/check_markdown_math.py",
     "tools/safe_patch.py",
     "tools/remote_safe_patch.py",
     "tools/remote_safe_patch_control.py",
