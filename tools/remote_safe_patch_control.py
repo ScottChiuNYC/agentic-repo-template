@@ -106,6 +106,8 @@ def parse_intent(body: str, root: Path) -> ControlRequest:
     if not body.startswith(prefix) or "\r" in body:
         reject("REMOTE_SAFE_PATCH_CONTROL_REJECTED_MARKER")
     lines = body[len(prefix):].split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
     if len(lines) < 5 or lines[0] != "version: 2" or not lines[1].startswith("target: ") or not lines[2].startswith("max_changed_lines: "):
         reject("REMOTE_SAFE_PATCH_CONTROL_REJECTED_INTENT_SHAPE")
     target = validate_target(lines[1][len("target: "):])
