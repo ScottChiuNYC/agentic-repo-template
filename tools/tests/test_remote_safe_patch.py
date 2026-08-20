@@ -43,8 +43,9 @@ class RemoteSafePatchTests(unittest.TestCase):
 
     def test_rejects_protected_workflow_target(self) -> None:
         self.make_request(".github/workflows/evil.yml")
-        with self.assertRaisesRegex(safe_patch.SafePatchError, "PROTECTED_TARGET"):
+        with self.assertRaises(safe_patch.SafePatchError) as caught:
             remote_safe_patch.load_request(self.root)
+        self.assertEqual(caught.exception.code, "REMOTE_SAFE_PATCH_REJECTED_PROTECTED_TARGET")
 
     def test_rejects_stale_target_blob(self) -> None:
         self.make_request(blob="0" * 40)
@@ -54,8 +55,9 @@ class RemoteSafePatchTests(unittest.TestCase):
     def test_rejects_extra_request_file(self) -> None:
         self.make_request()
         (self.root / remote_safe_patch.REQUEST_DIR / "extra.txt").write_text("x", encoding="utf-8")
-        with self.assertRaisesRegex(safe_patch.SafePatchError, "REQUEST_SHAPE"):
+        with self.assertRaises(safe_patch.SafePatchError) as caught:
             remote_safe_patch.load_request(self.root)
+        self.assertEqual(caught.exception.code, "REMOTE_SAFE_PATCH_REJECTED_REQUEST_SHAPE")
 
 
 if __name__ == "__main__":
