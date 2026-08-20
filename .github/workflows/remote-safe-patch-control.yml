@@ -1,0 +1,191 @@
+name: Remote Safe Patch Control
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remote-safe-patch-control.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/remote-safe-patch-control.yml'
+      - 'tools/remote_safe_patch_control.py'
+      - 'tools/remote_safe_patch.py'
+      - 'tools/safe_patch.py'
+      - 'tools/tests/test_remote_safe_patch_control.py'
+      - 'tools/tests/test_remote_safe_patch.py'
+      - 'tools/tests/test_safe_patch.py'
+  issues:
+    types: [edited]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test Remote Safe Patch control plane
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_safe_patch.py'
+          python -m unittest discover -s tools/tests -p 'test_remote_safe_patch.py'
+          python -m unittest discover -s tools/tests -p 'test_remote_safe_patch_control.py'
+          python -m py_compile tools/safe_patch.py tools/remote_safe_patch.py tools/remote_safe_patch_control.py
+
+  ensure-control-issue:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Ensure permanent control issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '[remote-safe-patch-control]';
+            const readyBody = [
+              'Permanent owner-only control surface for narrow Safe Patch transactions.',
+              '',
+              'Status: ready.',
+              '',
+              'Edit this issue body using the documented `[remote-safe-patch-intent]` v2 literal-block protocol.',
+              'The legacy `[remote-safe-patch-request]` v1 JSON protocol remains supported.',
+              'Trusted GitHub Actions validates the request, creates a task branch, applies the patch, and opens a result PR.',
+            ].join('\n');
+            const issues = await github.paginate(github.rest.issues.listForRepo, {owner: context.repo.owner, repo: context.repo.repo, state: 'all', per_page: 100});
+            const existing = issues.find(i => !i.pull_request && i.title === title);
+            if (existing) {
+              if (existing.state !== 'open') await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open'});
+              core.info(`Control issue exists: #${existing.number}`);
+              return;
+            }
+            const { data } = await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body: readyBody});
+            core.info(`Created control issue #${data.number}`);
+
+  apply:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      github.event.issue.title == '[remote-safe-patch-control]' &&
+      github.actor == github.repository_owner &&
+      (startsWith(github.event.issue.body, '[remote-safe-patch-intent]') ||
+       startsWith(github.event.issue.body, '[remote-safe-patch-request]'))
+    runs-on: ubuntu-latest
+    concurrency:
+      group: remote-safe-patch-control-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create isolated transaction branch
+        id: branch
+        run: |
+          set -euo pipefail
+          base_sha="$(git rev-parse HEAD)"
+          branch="remote-safe-patch/control-${{ github.event.issue.number }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          [[ -z "$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')" ]] || { echo 'REMOTE_SAFE_PATCH_CONTROL_REJECTED_BRANCH_EXISTS' >&2; exit 3; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$branch" "$base_sha"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Materialize trusted request
+        id: request
+        env:
+          REMOTE_SAFE_PATCH_CONTROL_BODY: ${{ github.event.issue.body }}
+          CONTROL_JSON: ${{ runner.temp }}/control.json
+        run: |
+          set -euo pipefail
+          python tools/remote_safe_patch_control.py prepare --repo-root . --body-env REMOTE_SAFE_PATCH_CONTROL_BODY --result-json "$CONTROL_JSON"
+          target="$(python - "$CONTROL_JSON" <<'PY'
+          import json, sys
+          print(json.load(open(sys.argv[1], encoding='utf-8'))['target'])
+          PY
+          )"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Apply trusted Safe Patch
+        env:
+          BASE_SHA: ${{ steps.branch.outputs.base_sha }}
+        run: |
+          set -euo pipefail
+          python tools/remote_safe_patch.py apply --repo-root . --expected-head "$BASE_SHA" --write
+
+      - name: Commit exact target and push
+        id: push
+        env:
+          TARGET: ${{ steps.request.outputs.target }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          set -euo pipefail
+          rm -rf .github/safe-patch-request
+          mapfile -t changed < <(git diff --name-only)
+          [[ ${#changed[@]} -eq 1 && "${changed[0]}" == "$TARGET" ]] || { echo "REMOTE_SAFE_PATCH_CONTROL_REJECTED_POST_WRITE_STATE: ${changed[*]}" >&2; exit 3; }
+          git add -- "$TARGET"
+          git diff --cached --check
+          git commit -m 'Apply remote Safe Patch control request' >/dev/null
+          [[ -z "$(git status --porcelain)" ]] || { echo 'REMOTE_SAFE_PATCH_CONTROL_REJECTED_DIRTY_POST_COMMIT' >&2; exit 3; }
+          [[ -z "$(git ls-remote origin "refs/heads/${BRANCH}" | awk '{print $1}')" ]] || { echo 'REMOTE_SAFE_PATCH_CONTROL_REJECTED_BRANCH_APPEARED' >&2; exit 3; }
+          git push origin "HEAD:refs/heads/${BRANCH}"
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open result PR and reset control issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          TARGET: ${{ steps.request.outputs.target }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
+          OUTPUT_HEAD: ${{ steps.push.outputs.commit_sha }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue = context.payload.issue;
+            const readyBody = [
+              'Permanent owner-only control surface for narrow Safe Patch transactions.', '', 'Status: ready.', '',
+              'Edit this issue body using the documented `[remote-safe-patch-intent]` v2 literal-block protocol.',
+              'The legacy `[remote-safe-patch-request]` v1 JSON protocol remains supported.',
+              'Trusted GitHub Actions validates the request, creates a task branch, applies the patch, and opens a result PR.',
+            ].join('\n');
+            let failure = null;
+            try {
+              if (process.env.PUSH_OUTCOME === 'success') {
+                const { data: pr } = await github.rest.pulls.create({
+                  owner, repo, head: process.env.BRANCH, base: context.payload.repository.default_branch,
+                  title: `Safe patch ${process.env.TARGET}`,
+                  body: `Owner-authored Remote Safe Patch result.\n\nTarget: \`${process.env.TARGET}\`\nOutput head: \`${process.env.OUTPUT_HEAD}\`\n\nRe-fetch the final diff and validate this exact head before merge.`,
+                });
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `REMOTE_SAFE_PATCH_CONTROL_SUCCESS pr=#${pr.number} target=${process.env.TARGET} output_head=${process.env.OUTPUT_HEAD}.`});
+              } else {
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `REMOTE_SAFE_PATCH_CONTROL_REJECTED run=${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}. Inspect the failed guard before retrying.`});
+                failure = new Error('Remote Safe Patch transaction failed.');
+              }
+            } catch (error) {
+              failure = error;
+            }
+            try {
+              await github.rest.issues.update({owner, repo, issue_number: issue.number, body: readyBody, state: 'open'});
+            } catch (error) {
+              failure ||= error;
+            }
+            if (failure) throw failure;
