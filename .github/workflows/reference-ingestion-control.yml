@@ -1,0 +1,202 @@
+name: Reference Ingestion Control
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/reference-ingestion-control.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/reference-ingestion-control.yml'
+      - '.github/workflows/reference-ingestion.yml'
+      - 'tools/reference_ingest.py'
+      - 'tools/reference_ingest_render.py'
+      - 'tools/reference_ingest_ocr.sh'
+      - 'tools/reference_ingest_commit.sh'
+      - 'tools/tests/test_reference_ingest.py'
+  issues:
+    types: [edited]
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test reference ingestion control dependencies
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_reference_ingest.py'
+          python -m py_compile tools/reference_ingest.py tools/reference_ingest_render.py
+          bash -n tools/reference_ingest_ocr.sh
+          bash -n tools/reference_ingest_commit.sh
+
+  ensure-control-issue:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Ensure permanent control issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '[reference-ingestion-control]';
+            const readyBody = [
+              'Permanent owner-only control surface for source-versioned PDF ingestion.',
+              '',
+              'Status: ready.',
+              '',
+              'Edit this body with a `[reference-ingestion-intent]` request:',
+              '',
+              'version = 1',
+              'source = "ref/example.pdf"',
+              'start_page = 1',
+              'end_page = 0',
+              '',
+              '`end_page = 0` means the final PDF page. The trusted workflow binds the request to the exact source blob SHA and opens a result PR.',
+            ].join('\n');
+            const issues = await github.paginate(github.rest.issues.listForRepo, {owner: context.repo.owner, repo: context.repo.repo, state: 'all', per_page: 100});
+            const existing = issues.find(i => !i.pull_request && i.title === title);
+            if (existing) {
+              if (existing.state !== 'open') await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open'});
+              return core.info(`Control issue exists: #${existing.number}`);
+            }
+            const { data } = await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body: readyBody});
+            core.info(`Created control issue #${data.number}`);
+
+  prepare:
+    if: >-
+      github.event_name == 'issues' &&
+      github.event.action == 'edited' &&
+      github.event.issue.title == '[reference-ingestion-control]' &&
+      github.actor == github.repository_owner &&
+      startsWith(github.event.issue.body, '[reference-ingestion-intent]')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: reference-ingestion-control-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out trusted default branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Parse and validate intent
+        id: request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const raw = (context.payload.issue.body || '').replace(/^\[reference-ingestion-intent\]\s*(?:\r?\n)?/, '');
+            const lines = raw.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+            const values = {};
+            const expected = ['version', 'source', 'start_page', 'end_page'];
+            for (const line of lines) {
+              const match = line.match(/^([a-z_]+)\s*=\s*(?:"([^"\r\n]*)"|([0-9]+))$/);
+              if (!match) throw new Error(`REFERENCE_INGEST_CONTROL_REJECTED_REQUEST_SHAPE: ${line}`);
+              const key = match[1];
+              if (!expected.includes(key) || Object.hasOwn(values, key)) throw new Error(`REFERENCE_INGEST_CONTROL_REJECTED_REQUEST_FIELDS: ${key}`);
+              values[key] = match[2] !== undefined ? match[2] : Number(match[3]);
+            }
+            if (expected.some(key => !Object.hasOwn(values, key)) || Object.keys(values).length !== expected.length) throw new Error('REFERENCE_INGEST_CONTROL_REJECTED_REQUEST_FIELDS');
+            if (values.version !== 1) throw new Error('REFERENCE_INGEST_CONTROL_REJECTED_VERSION');
+            if (typeof values.source !== 'string' || !/^ref\/.+\.pdf$/i.test(values.source) || values.source.includes('..') || values.source.includes('\\')) throw new Error('REFERENCE_INGEST_CONTROL_REJECTED_SOURCE');
+            if (!Number.isInteger(values.start_page) || !Number.isInteger(values.end_page) || values.start_page < 1 || values.end_page < 0 || (values.end_page !== 0 && values.end_page < values.start_page) || (values.end_page !== 0 && values.end_page - values.start_page + 1 > 100)) throw new Error('REFERENCE_INGEST_CONTROL_REJECTED_PAGE_RANGE');
+            const branch = `reference-ingestion/control-${context.payload.issue.number}-${context.runId}-${context.runAttempt}`;
+            const file = values.source.split('/').pop().replace(/\.pdf$/i, '');
+            const range = values.end_page === 0 ? `${values.start_page}-EOF` : `${values.start_page}-${values.end_page}`;
+            core.setOutput('source', values.source);
+            core.setOutput('start_page', String(values.start_page));
+            core.setOutput('end_page', String(values.end_page));
+            core.setOutput('branch', branch);
+            core.setOutput('title', `[reference-ingestion] Ingest ${file} pages ${range}`);
+
+      - name: Create source-bound request branch
+        id: branch
+        env:
+          SOURCE: ${{ steps.request.outputs.source }}
+          START_PAGE: ${{ steps.request.outputs.start_page }}
+          END_PAGE: ${{ steps.request.outputs.end_page }}
+          BRANCH: ${{ steps.request.outputs.branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="$(git rev-parse HEAD)"
+          [[ -z "$(git ls-remote origin "refs/heads/${BRANCH}" | awk '{print $1}')" ]] || { echo 'REFERENCE_INGEST_CONTROL_REJECTED_BRANCH_EXISTS' >&2; exit 3; }
+          entry="$(git ls-tree "$base_sha" -- "$SOURCE")"
+          mode="$(awk '{print $1}' <<< "$entry")"
+          type="$(awk '{print $2}' <<< "$entry")"
+          source_sha="$(awk '{print $3}' <<< "$entry")"
+          [[ "$mode" == '100644' && "$type" == 'blob' && "$source_sha" =~ ^[0-9a-f]{40}$ ]] || { echo 'REFERENCE_INGEST_CONTROL_REJECTED_SOURCE_NOT_REGULAR_FILE' >&2; exit 3; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$BRANCH" "$base_sha"
+          mkdir -p .github/reference-ingestion-request
+          printf '%s\n' \
+            'version = 1' \
+            "source = \"${SOURCE}\"" \
+            "expected_source_blob_sha = \"${source_sha}\"" \
+            "start_page = ${START_PAGE}" \
+            "end_page = ${END_PAGE}" \
+            > .github/reference-ingestion-request/request.toml
+          printf 'ready\n' > .github/reference-ingestion-request/READY
+          git add .github/reference-ingestion-request
+          git diff --cached --check
+          git commit -m 'Prepare reference ingestion request' >/dev/null
+          git push origin "HEAD:refs/heads/${BRANCH}"
+          echo "request_head=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Open executor PR and reset control issue
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          BRANCH: ${{ steps.request.outputs.branch }}
+          TITLE: ${{ steps.request.outputs.title }}
+          SOURCE: ${{ steps.request.outputs.source }}
+          REQUEST_HEAD: ${{ steps.branch.outputs.request_head }}
+          BRANCH_OUTCOME: ${{ steps.branch.outcome }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue = context.payload.issue;
+            const readyBody = [
+              'Permanent owner-only control surface for source-versioned PDF ingestion.', '', 'Status: ready.', '',
+              'Edit this body with a `[reference-ingestion-intent]` request:', '',
+              'version = 1', 'source = "ref/example.pdf"', 'start_page = 1', 'end_page = 0', '',
+              '`end_page = 0` means the final PDF page. The trusted workflow binds the request to the exact source blob SHA and opens a result PR.',
+            ].join('\n');
+            let failure = null;
+            try {
+              if (process.env.BRANCH_OUTCOME === 'success') {
+                const { data: pr } = await github.rest.pulls.create({
+                  owner, repo, head: process.env.BRANCH, base: context.payload.repository.default_branch,
+                  title: process.env.TITLE,
+                  body: `Trusted reference-ingestion request from control issue #${issue.number}.\n\nSource: \`${process.env.SOURCE}\`\nRequest head: \`${process.env.REQUEST_HEAD}\`\n\nThe privileged executor binds generated output to this exact source version and removes the request files before final validation.`,
+                });
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `REFERENCE_INGEST_CONTROL_ACCEPTED pr=#${pr.number} source=${process.env.SOURCE} request_head=${process.env.REQUEST_HEAD}.`});
+              } else {
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `REFERENCE_INGEST_CONTROL_REJECTED run=${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}.`});
+                failure = new Error('Reference ingestion control transaction failed.');
+              }
+            } catch (error) {
+              failure = error;
+            }
+            try {
+              await github.rest.issues.update({owner, repo, issue_number: issue.number, body: readyBody, state: 'open'});
+            } catch (error) {
+              failure ||= error;
+            }
+            if (failure) throw failure;
