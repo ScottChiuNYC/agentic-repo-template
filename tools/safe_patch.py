@@ -203,9 +203,9 @@ def _write_atomic(path: Path, text: str) -> None:
 def _validate_markdown(root: Path, path: Path) -> None:
     if path.suffix.lower() != ".md":
         return
-    checker = root / "scripts" / "check_markdown_math.py"
+    checker = root / "tools" / "check_markdown_math.py"
     if not checker.is_file():
-        raise SafePatchError("SAFE_PATCH_REJECTED_VALIDATOR_MISSING", "Markdown target requires scripts/check_markdown_math.py.", 6)
+        raise SafePatchError("SAFE_PATCH_REJECTED_VALIDATOR_MISSING", "Markdown target requires tools/check_markdown_math.py.", 6)
     relative = path.relative_to(root).as_posix()
     completed = subprocess.run(
         [sys.executable, str(checker), relative],
@@ -241,7 +241,7 @@ def run_doctor() -> int:
         branch = current_branch(root)
     except SafePatchError as exc:
         branch = f"<unavailable:{exc.code}>"
-    checker = root / "scripts" / "check_markdown_math.py"
+    checker = root / "tools" / "check_markdown_math.py"
     print(f"repo_root={root}")
     print(f"branch={branch}")
     print(f"head={current_head(root)}")
