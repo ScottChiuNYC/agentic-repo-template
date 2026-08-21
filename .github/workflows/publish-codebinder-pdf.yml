@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           python -m unittest discover -s tools/tests -p 'test_*.py'
           python -m py_compile \
-            scripts/check_markdown_math.py \
+            tools/check_markdown_math.py \
             tools/safe_patch.py \
             tools/remote_safe_patch.py \
             tools/remote_safe_patch_control.py \
@@ -47,7 +47,7 @@ jobs:
             tools/upload_to_google_drive.py
           mapfile -t markdown < <(git ls-files '*.md')
           if (( ${#markdown[@]} > 0 )); then
-            python scripts/check_markdown_math.py "${markdown[@]}"
+            python tools/check_markdown_math.py "${markdown[@]}"
           fi
 
       - name: Install PDF dependencies

@@ -26,4 +26,4 @@
 - Avoid putting display math inside Markdown tables.
 - Preserve literal currency dollar signs by escaping them when they could be parsed as math.
 
-`scripts/check_markdown_math.py` is the fail-closed repository validator for common delimiter and formatting errors.
+`tools/check_markdown_math.py` is the fail-closed repository validator for common delimiter and formatting errors.

@@ -46,13 +46,26 @@ CodeBinder PDF artifact
 ## Start a new project
 
 1. Create a repository from this template.
-2. Replace the placeholders in `docs/CURRENT_STATE.md`.
-3. Review `AGENTS.md` and customize project-specific rules only where necessary.
-4. Apply the manual repository settings in `docs/workflow/repository_settings.md`.
+2. Complete the required post-template GitHub settings below.
+3. Replace the placeholders in `docs/CURRENT_STATE.md`.
+4. Review `AGENTS.md` and customize project-specific rules only where necessary.
 5. If Google Drive publication is desired, configure the four documented Actions secrets.
 6. Keep `main` authoritative; move stable conclusions from chat into the repository.
 
 AI agents should begin with `AGENTS.md` and `docs/START_HERE.md`.
+
+## Required post-template GitHub settings
+
+GitHub template repositories do not copy these repository settings. Enable both in every repository created from this template:
+
+1. **Allow GitHub Actions to create and approve pull requests**
+   - `Settings` → `Actions` → `General` → `Workflow permissions`
+   - Enable **Allow GitHub Actions to create and approve pull requests**.
+2. **Automatically delete head branches**
+   - `Settings` → `General` → `Pull Requests`
+   - Enable **Automatically delete head branches**.
+
+Detailed bootstrap instructions, including optional Google Drive secrets, are in `docs/workflow/repository_settings.md`.
 
 ## Google Drive switch
 
@@ -85,3 +98,7 @@ Secret values are never stored in this template and are not inherited by reposit
 ## Scope
 
 This repository is development infrastructure, not an AI model framework, agent runtime, or domain-specific application skeleton. It intentionally excludes project-specific build systems, experiments, models, trading logic, and research content.
+
+## License
+
+MIT. See `LICENSE`.

@@ -7,7 +7,7 @@ on:
       - '.github/workflows/remote-safe-patch.yml'
       - 'tools/safe_patch.py'
       - 'tools/remote_safe_patch.py'
-      - 'scripts/check_markdown_math.py'
+      - 'tools/check_markdown_math.py'
       - 'tools/tests/test_safe_patch.py'
       - 'tools/tests/test_remote_safe_patch.py'
   issue_comment:
@@ -83,7 +83,7 @@ jobs:
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
         run: |
           set -euo pipefail
-          cmp --silent trusted/scripts/check_markdown_math.py work/scripts/check_markdown_math.py || { echo 'REMOTE_SAFE_PATCH_REJECTED_VALIDATOR_CHANGED' >&2; exit 3; }
+          cmp --silent trusted/tools/check_markdown_math.py work/tools/check_markdown_math.py || { echo 'REMOTE_SAFE_PATCH_REJECTED_VALIDATOR_CHANGED' >&2; exit 3; }
           remote_sha="$(git -C work ls-remote origin "refs/heads/${HEAD_REF}" | awk '{print $1}')"
           [[ "$remote_sha" == "$HEAD_SHA" ]] || { echo "REMOTE_SAFE_PATCH_REJECTED_HEAD_MOVED: expected ${HEAD_SHA}, found ${remote_sha}" >&2; exit 3; }
           git -C work switch --create "remote-safe-patch-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" "$HEAD_SHA"
