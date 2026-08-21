@@ -16,12 +16,14 @@ When sources conflict, prefer the higher-authority current repository artifact u
 
 ## New repository bootstrap
 
+Prefer the automated VPS bootstrap in `bootstrap/new_repo.sh`. It creates the repository from this template, applies non-inherited GitHub settings, optionally installs Google Drive Actions secrets from an external protected file, and verifies the resulting configuration. See `docs/workflow/repository_settings.md`.
+
 After creating a repository from this template:
 
 1. replace all placeholders in `docs/CURRENT_STATE.md`;
 2. remove optional infrastructure that the project will not use;
-3. review `docs/workflow/repository_settings.md` and apply the manual GitHub settings;
-4. configure Google Drive secrets only if external PDF publication is wanted;
+3. confirm the bootstrap verification passed, or apply the manual settings in `docs/workflow/repository_settings.md` if automation was not used;
+4. configure Google Drive publication only when the project needs external PDF delivery;
 5. create project-specific architecture/research/specification files rather than overloading workflow documentation;
 6. keep stable decisions in Git, not only in chat.
 
