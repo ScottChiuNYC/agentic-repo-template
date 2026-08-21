@@ -11,6 +11,7 @@ permissions:
 jobs:
   create-repository:
     if: >-
+      github.repository == 'ScottChiuNYC/agentic-repo-template' &&
       github.event.issue.user.login == github.repository_owner &&
       startsWith(github.event.issue.title, 'repo-factory: ')
     runs-on: ubuntu-latest
