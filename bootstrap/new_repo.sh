@@ -12,7 +12,7 @@ readonly -a DRIVE_SECRET_NAMES=(
 
 usage() {
   cat <<'USAGE'
-Create a repository from the Agentic Repo Template and apply settings that
+Create a repository from the Agentic Repo Template (ART) and apply settings that
 GitHub templates cannot inherit.
 
 Usage:

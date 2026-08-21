@@ -1,10 +1,10 @@
-# Agentic Repo Template
+# Agentic Repo Template (ART)
 
-A reusable GitHub template for long-lived human-AI software collaboration.
+Agentic Repo Template (ART) is a reusable GitHub template for long-lived human-AI software collaboration.
 
-The repository treats Git—not chat history—as durable project memory. It gives human developers and AI agents the same operating contracts, implementation specifications, mutation safeguards, validation gates, and publication path.
+ART treats Git—not chat history—as durable project memory. It gives human developers and AI agents the same operating contracts, implementation specifications, mutation safeguards, validation gates, and publication path.
 
-## What this template provides
+## What ART provides
 
 - **Repository-backed memory**: `AGENTS.md`, `docs/START_HERE.md`, and `docs/CURRENT_STATE.md` establish the current source of truth.
 - **Agent operating contracts**: explicit rules for research, implementation, GitHub mutation, documentation, and handoff.
@@ -14,8 +14,8 @@ The repository treats Git—not chat history—as durable project memory. It giv
 - **Documentation validation**: Markdown/math checks run before publication.
 - **Whole-repository publication**: CodeBinder converts the repository to a validated PDF artifact.
 - **Optional Google Drive delivery**: Drive upload is enabled only when all four required repository secrets are configured; otherwise it is skipped cleanly.
-- **Automated repository bootstrap**: `bootstrap/new_repo.sh` creates a repository from this template, applies non-inherited GitHub settings, optionally installs Drive secrets from an external secret file, and verifies the resulting configuration.
-- **Repository Factory control plane**: the template repository can accept an owner-authored GitHub issue and run the bootstrap through GitHub Actions using a protected `REPO_FACTORY_TOKEN`.
+- **Automated repository bootstrap**: `bootstrap/new_repo.sh` creates a repository from ART, applies non-inherited GitHub settings, optionally installs Drive secrets from an external secret file, and verifies the resulting configuration.
+- **Repository Factory control plane**: the ART repository can accept an owner-authored GitHub issue and run the bootstrap through GitHub Actions using a protected `REPO_FACTORY_TOKEN`.
 
 ## Architecture
 
@@ -56,7 +56,7 @@ Title: repo-factory: my-project
 Body: visibility=private
 ```
 
-The GitHub Actions workflow validates that the issue was authored by the template repository owner, runs `bootstrap/new_repo.sh --no-drive-secrets`, verifies the new repository settings, and closes the control issue on success. The factory is hard-disabled in repositories copied from this template.
+The GitHub Actions workflow validates that the issue was authored by the ART repository owner, runs `bootstrap/new_repo.sh --no-drive-secrets`, verifies the new repository settings, and closes the control issue on success. The factory is hard-disabled in repositories copied from ART.
 
 See `docs/workflow/repository_factory.md` for the request protocol and security boundary.
 
@@ -70,14 +70,14 @@ bash bootstrap/new_repo.sh my-project --private
 
 The bootstrap utility:
 
-1. creates the repository from this GitHub template;
+1. creates the repository from ART;
 2. enables automatic deletion of merged head branches;
 3. ensures squash merge is available;
 4. enables **Allow GitHub Actions to create and approve pull requests** while keeping the default `GITHUB_TOKEN` permission read-only;
 5. installs the four Google Drive Actions secrets when the external secrets file is present;
 6. reads the resulting GitHub state back and fails if verification does not match the intended configuration.
 
-The default secret location is `~/.config/agentic-repo-bootstrap/google-drive.env`. Secret values are never stored in this repository or sourced as shell code. See `docs/workflow/repository_settings.md` for one-time VPS setup, options, security rules, and the manual fallback.
+The default secret location is `~/.config/agentic-repo-bootstrap/google-drive.env`. Secret values are never stored in ART or sourced as shell code. See `docs/workflow/repository_settings.md` for one-time VPS setup, options, security rules, and the manual fallback.
 
 After creation:
 
@@ -118,7 +118,7 @@ Behavior is fail-closed:
 - all present: upload the PDF after a successful `main` build;
 - only some present: fail the configuration check rather than silently publish incorrectly.
 
-Secret values are never stored in this template and are not inherited by repositories created from a GitHub template. The bootstrap utility can copy them from a protected VPS-local dotenv file using `gh secret set`; GitHub CLI encrypts secret values before sending them to GitHub.
+Secret values are never stored in ART and are not inherited by repositories created from a GitHub template. The bootstrap utility can copy them from a protected VPS-local dotenv file using `gh secret set`; GitHub CLI encrypts secret values before sending them to GitHub.
 
 ## Design principles
 
@@ -132,7 +132,7 @@ Secret values are never stored in this template and are not inherited by reposit
 
 ## Scope
 
-This repository is development infrastructure, not an AI model framework, agent runtime, or domain-specific application skeleton. It intentionally excludes project-specific build systems, experiments, models, trading logic, and research content.
+ART is development infrastructure, not an AI model framework, agent runtime, or domain-specific application skeleton. It intentionally excludes project-specific build systems, experiments, models, trading logic, and research content.
 
 ## License
 
