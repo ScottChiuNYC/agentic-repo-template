@@ -14,6 +14,7 @@ The repository treats Git—not chat history—as durable project memory. It giv
 - **Documentation validation**: Markdown/math checks run before publication.
 - **Whole-repository publication**: CodeBinder converts the repository to a validated PDF artifact.
 - **Optional Google Drive delivery**: Drive upload is enabled only when all four required repository secrets are configured; otherwise it is skipped cleanly.
+- **Automated repository bootstrap**: `bootstrap/new_repo.sh` creates a repository from this template, applies non-inherited GitHub settings, optionally installs Drive secrets from an external secret file, and verifies the resulting configuration.
 
 ## Architecture
 
@@ -45,27 +46,46 @@ CodeBinder PDF artifact
 
 ## Start a new project
 
-1. Create a repository from this template.
-2. Complete the required post-template GitHub settings below.
-3. Replace the placeholders in `docs/CURRENT_STATE.md`.
-4. Review `AGENTS.md` and customize project-specific rules only where necessary.
-5. If Google Drive publication is desired, configure the four documented Actions secrets.
-6. Keep `main` authoritative; move stable conclusions from chat into the repository.
+### Automated bootstrap (recommended)
+
+On a trusted Linux host or VPS with GitHub CLI authenticated, run:
+
+```bash
+bash bootstrap/new_repo.sh my-project --private
+```
+
+The bootstrap utility:
+
+1. creates the repository from this GitHub template;
+2. enables automatic deletion of merged head branches;
+3. ensures squash merge is available;
+4. enables **Allow GitHub Actions to create and approve pull requests** while keeping the default `GITHUB_TOKEN` permission read-only;
+5. installs the four Google Drive Actions secrets when the external secrets file is present;
+6. reads the resulting GitHub state back and fails if verification does not match the intended configuration.
+
+The default secret location is `~/.config/agentic-repo-bootstrap/google-drive.env`. Secret values are never stored in this repository or sourced as shell code. See `docs/workflow/repository_settings.md` for one-time VPS setup, options, security rules, and the manual fallback.
+
+After creation:
+
+1. replace the placeholders in `docs/CURRENT_STATE.md`;
+2. review `AGENTS.md` and customize project-specific rules only where necessary;
+3. keep `main` authoritative and move stable conclusions from chat into the repository.
 
 AI agents should begin with `AGENTS.md` and `docs/START_HERE.md`.
 
-## Required post-template GitHub settings
+### Manual fallback
 
-GitHub template repositories do not copy these repository settings. Enable both in every repository created from this template:
+GitHub template repositories copy files but do not inherit repository settings or secret values. If the bootstrap utility is not used, manually configure:
 
 1. **Allow GitHub Actions to create and approve pull requests**
    - `Settings` → `Actions` → `General` → `Workflow permissions`
-   - Enable **Allow GitHub Actions to create and approve pull requests**.
+   - enable **Allow GitHub Actions to create and approve pull requests**.
 2. **Automatically delete head branches**
    - `Settings` → `General` → `Pull Requests`
-   - Enable **Automatically delete head branches**.
+   - enable **Automatically delete head branches**.
+3. Add the optional Google Drive secrets under `Settings` → `Secrets and variables` → `Actions`.
 
-Detailed bootstrap instructions, including optional Google Drive secrets, are in `docs/workflow/repository_settings.md`.
+Detailed instructions are in `docs/workflow/repository_settings.md`.
 
 ## Google Drive switch
 
@@ -84,7 +104,7 @@ Behavior is fail-closed:
 - all present: upload the PDF after a successful `main` build;
 - only some present: fail the configuration check rather than silently publish incorrectly.
 
-Secret values are never stored in this template and are not inherited by repositories created from a GitHub template.
+Secret values are never stored in this template and are not inherited by repositories created from a GitHub template. The bootstrap utility can copy them from a protected VPS-local dotenv file using `gh secret set`; GitHub CLI encrypts secret values before sending them to GitHub.
 
 ## Design principles
 
@@ -94,6 +114,7 @@ Secret values are never stored in this template and are not inherited by reposit
 - A frozen specification must not depend on hidden conversational context.
 - Automation should fail closed when state, provenance, or intent is ambiguous.
 - Project-specific domain assumptions do not belong in reusable infrastructure.
+- Credentials belong in external secret stores or GitHub Actions secrets, never in template files.
 
 ## Scope
 
