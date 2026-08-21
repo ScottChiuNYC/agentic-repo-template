@@ -15,6 +15,7 @@ The repository treats Git—not chat history—as durable project memory. It giv
 - **Whole-repository publication**: CodeBinder converts the repository to a validated PDF artifact.
 - **Optional Google Drive delivery**: Drive upload is enabled only when all four required repository secrets are configured; otherwise it is skipped cleanly.
 - **Automated repository bootstrap**: `bootstrap/new_repo.sh` creates a repository from this template, applies non-inherited GitHub settings, optionally installs Drive secrets from an external secret file, and verifies the resulting configuration.
+- **Repository Factory control plane**: the template repository can accept an owner-authored GitHub issue and run the bootstrap through GitHub Actions using a protected `REPO_FACTORY_TOKEN`.
 
 ## Architecture
 
@@ -46,7 +47,20 @@ CodeBinder PDF artifact
 
 ## Start a new project
 
-### Automated bootstrap (recommended)
+### Repository Factory (preferred remote path)
+
+When `REPO_FACTORY_TOKEN` is configured in `ScottChiuNYC/agentic-repo-template`, an authorized agent can create a control issue such as:
+
+```text
+Title: repo-factory: my-project
+Body: visibility=private
+```
+
+The GitHub Actions workflow validates that the issue was authored by the template repository owner, runs `bootstrap/new_repo.sh --no-drive-secrets`, verifies the new repository settings, and closes the control issue on success. The factory is hard-disabled in repositories copied from this template.
+
+See `docs/workflow/repository_factory.md` for the request protocol and security boundary.
+
+### Trusted-host / VPS bootstrap
 
 On a trusted Linux host or VPS with GitHub CLI authenticated, run:
 

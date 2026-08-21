@@ -16,7 +16,9 @@ When sources conflict, prefer the higher-authority current repository artifact u
 
 ## New repository bootstrap
 
-Prefer the automated VPS bootstrap in `bootstrap/new_repo.sh`. It creates the repository from this template, applies non-inherited GitHub settings, optionally installs Google Drive Actions secrets from an external protected file, and verifies the resulting configuration. See `docs/workflow/repository_settings.md`.
+For remote creation, prefer the owner-gated GitHub Actions Repository Factory documented in `docs/workflow/repository_factory.md`. It uses `bootstrap/new_repo.sh` as its backend and keeps the factory credential only in the template repository.
+
+For trusted-host or VPS creation, run `bootstrap/new_repo.sh` directly. It creates the repository from this template, applies non-inherited GitHub settings, optionally installs Google Drive Actions secrets from an external protected file, and verifies the resulting configuration. See `docs/workflow/repository_settings.md`.
 
 After creating a repository from this template:
 

@@ -1,0 +1,99 @@
+name: Repository Factory
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  create-repository:
+    if: >-
+      github.repository == 'ScottChiuNYC/agentic-repo-template' &&
+      github.event.issue.user.login == github.repository_owner &&
+      startsWith(github.event.issue.title, 'repo-factory: ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out template
+        uses: actions/checkout@v4
+
+      - name: Parse and validate request
+        id: request
+        shell: bash
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          set -euo pipefail
+
+          repo_name="${ISSUE_TITLE#repo-factory: }"
+          [[ "$repo_name" =~ ^[A-Za-z0-9._-]+$ ]] || {
+            echo 'Invalid repository name.' >&2
+            exit 1
+          }
+
+          body="${ISSUE_BODY//$'\r'/}"
+          body="${body%$'\n'}"
+          case "$body" in
+            visibility=private) visibility=private ;;
+            visibility=public) visibility=public ;;
+            *)
+              echo 'Issue body must be exactly visibility=private or visibility=public.' >&2
+              exit 1
+              ;;
+          esac
+
+          printf 'repo_name=%s\n' "$repo_name" >> "$GITHUB_OUTPUT"
+          printf 'visibility=%s\n' "$visibility" >> "$GITHUB_OUTPUT"
+
+      - name: Verify repository factory credential
+        shell: bash
+        env:
+          FACTORY_TOKEN: ${{ secrets.REPO_FACTORY_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ -n "$FACTORY_TOKEN" ]] || {
+            echo 'REPO_FACTORY_TOKEN is not configured.' >&2
+            exit 1
+          }
+
+      - name: Create and bootstrap repository
+        shell: bash
+        env:
+          FACTORY_TOKEN: ${{ secrets.REPO_FACTORY_TOKEN }}
+          REPO_NAME: ${{ steps.request.outputs.repo_name }}
+          VISIBILITY: ${{ steps.request.outputs.visibility }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          GH_TOKEN="$FACTORY_TOKEN" bash bootstrap/new_repo.sh \
+            "$REPO_NAME" \
+            "--$VISIBILITY" \
+            --owner "$OWNER" \
+            --no-drive-secrets
+
+      - name: Record success
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TARGET_REPO: ${{ github.repository_owner }}/${{ steps.request.outputs.repo_name }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE_NUMBER" --body "Created and bootstrapped \`$TARGET_REPO\`."
+          gh issue close "$ISSUE_NUMBER" --reason completed
+
+      - name: Record failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          gh issue comment "$ISSUE_NUMBER" --body 'Repository factory failed. Inspect the workflow run; no credential values are written to the issue.'
