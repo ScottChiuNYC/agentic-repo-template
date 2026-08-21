@@ -1,23 +1,23 @@
 # Repository Bootstrap and Settings
 
-GitHub template repositories copy files, not repository settings or secret values. Prefer the VPS bootstrap utility for repeatable creation; use the manual procedure only as a fallback.
+The Agentic Repo Template (ART) uses GitHub's template mechanism to copy files, not repository settings or secret values. Prefer the ART VPS bootstrap utility for repeatable creation; use the manual procedure only as a fallback.
 
 ## Recommended: automated bootstrap
 
-`bootstrap/new_repo.sh` creates a new repository from this template and applies the repository-level state that GitHub templates cannot inherit.
+`bootstrap/new_repo.sh` creates a new repository from ART and applies the repository-level state that GitHub templates cannot inherit.
 
 It performs these operations in order:
 
 1. validates GitHub CLI authentication, the target repository name, and the configured template;
 2. validates the external Google Drive secret file before any repository is created;
-3. creates the repository from the template;
+3. creates the repository from ART;
 4. enables automatic deletion of merged head branches;
 5. ensures squash merge is enabled;
 6. enables **Allow GitHub Actions to create and approve pull requests** while keeping the default `GITHUB_TOKEN` permission read-only;
 7. optionally installs the four Google Drive repository secrets;
 8. reads repository settings and secret names back from GitHub and fails if verification does not match the requested state.
 
-The script deliberately refuses to continue if the target repository already exists. A partial failure after repository creation is reported but never causes automatic repository deletion.
+The ART bootstrap deliberately refuses to continue if the target repository already exists. A partial failure after repository creation is reported but never causes automatic repository deletion.
 
 ### VPS prerequisites
 
@@ -34,7 +34,7 @@ Verify authentication with:
 gh auth status
 ```
 
-The script does not store a GitHub token. GitHub CLI authentication remains responsible for credential storage.
+ART does not store a GitHub token. GitHub CLI authentication remains responsible for credential storage.
 
 ### One-time Google Drive secret setup
 
@@ -56,7 +56,7 @@ chmod 600 ~/.config/agentic-repo-bootstrap/google-drive.env
 
 Do not commit this file, place it under a repository working tree, paste it into an issue/PR/chat, or keep screenshots of its contents.
 
-The bootstrap script never executes the dotenv file as shell code. Before upload it rejects:
+The ART bootstrap never executes the dotenv file as shell code. Before upload it rejects:
 
 - symlinked secret files;
 - group- or world-readable files on Linux;
@@ -119,7 +119,7 @@ newrepo my-project
 newrepo public-demo --public
 ```
 
-## State applied by the bootstrap
+## State applied by the ART bootstrap
 
 ### Allow GitHub Actions to create and approve pull requests
 
@@ -156,7 +156,7 @@ With no Drive secrets, publication skips Drive cleanly. A partial set intentiona
 
 ## Manual fallback
 
-If the VPS bootstrap is unavailable, configure the same state manually after creating a repository from the template.
+If the ART bootstrap is unavailable, configure the same state manually after creating a repository from the template.
 
 ### 1. Allow GitHub Actions to create and approve pull requests
 
