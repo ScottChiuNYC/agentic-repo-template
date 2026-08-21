@@ -76,7 +76,7 @@ validate_secrets_file() {
 
     key="${BASH_REMATCH[1]}"
     value="${BASH_REMATCH[2]}"
-    [[ -n "$value" && "$value" != '\"\"' && "$value" != "''" ]] || fail "secret $key has an empty value"
+    [[ -n "$value" && "$value" != '""' && "$value" != "''" ]] || fail "secret $key has an empty value"
 
     allowed=false
     for required in "${DRIVE_SECRET_NAMES[@]}"; do
@@ -157,6 +157,7 @@ done
 [[ "$template" == */* && "$template" != */*/* ]] || fail "--template must be OWNER/REPO"
 
 require_command gh
+require_command grep
 require_command stat
 
 gh auth status >/dev/null 2>&1 || fail "GitHub CLI is not authenticated; run 'gh auth login' first"
