@@ -13,6 +13,7 @@ Before substantial work, read in order:
 Before GitHub mutation, also read `docs/workflow/AI_AGENT_GITHUB_WORKFLOW.md`.
 For narrow edits, read `docs/workflow/safe_patch.md`; for connector-only mutation, also read `docs/workflow/remote_safe_patch.md`.
 For reference ingestion, read `docs/workflow/reference_ingestion_protocol.md`.
+For learning or relearning a technical topic with the repository owner, read `docs/workflow/learning.md`.
 Before authoring, auditing, freezing, or reopening an Essence, read `docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md`.
 
 `main` is the shared project source of truth. Repository state outranks stale chat history.
