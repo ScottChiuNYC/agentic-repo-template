@@ -14,7 +14,8 @@ Before GitHub mutation, also read `docs/workflow/AI_AGENT_GITHUB_WORKFLOW.md`.
 For narrow edits, read `docs/workflow/safe_patch.md`; for connector-only mutation, also read `docs/workflow/remote_safe_patch.md`.
 For reference ingestion, read `docs/workflow/reference_ingestion_protocol.md`.
 For learning or relearning a technical topic with the repository owner, read `docs/workflow/learning.md`.
-Before authoring, auditing, freezing, or reopening an Essence, read `docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md`.
+Before authoring, remediating, auditing, freezing, or reopening an Essence, read `docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md`.
+For a formal fresh independent pre-freeze audit, follow `docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md` as the canonical execution protocol.
 
 `main` is the shared project source of truth. Repository state outranks stale chat history.
 
@@ -28,11 +29,14 @@ Before authoring, auditing, freezing, or reopening an Essence, read `docs/workfl
 - Do not write directly to `main`, except when bootstrapping an empty repository that has no commit from which a branch can be created.
 - Prefer Safe Patch for narrow edits to tracked UTF-8 files.
 - A frozen Essence is a human/AI executable implementation contract; never fill its gaps from private conversational context.
-- Concision must not remove required assumptions, algorithms, interfaces, failure modes, or validation criteria.
+- Formal independent auditors and substantive remediators MUST be separate roles/runs.
+- Parallel auditors in the same audit round MUST evaluate the same immutable repository SHA and MUST NOT receive one another's findings or remediation reasoning.
+- Owner escalation happens only after a complete audit round has been reconciled into a canonical owner-decision set.
+- Concision must not remove required assumptions, algorithms, interfaces, failure modes, security boundaries, or validation criteria.
 
 ## Merge and publication
 
 - Merge only the exact PR head SHA that passed the required validation.
 - Prefer squash merge for focused task branches.
-- After merge, re-read `main` and verify any applicable publication workflow.
+- After merge, re-read `main`, verify cleanup, and verify any applicable publication workflow.
 - PDF behavior is documented in `docs/workflow/codebinder_pdf_pipeline.md`.

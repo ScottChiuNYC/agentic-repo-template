@@ -12,7 +12,7 @@ Use this file as the stable onboarding path for humans and AI agents.
 6. current code, tests, workflows, and configuration
 7. archived notes and old conversations
 
-When sources conflict, prefer the higher-authority current repository artifact unless an explicit newer decision says otherwise.
+When sources conflict, prefer the higher-authority current repository artifact unless an explicit newer owner decision says otherwise.
 
 ## New repository bootstrap
 
@@ -24,7 +24,7 @@ After creating a repository from this template:
 
 1. replace all placeholders in `docs/CURRENT_STATE.md`;
 2. remove optional infrastructure that the project will not use;
-3. confirm the bootstrap verification passed, or apply the manual settings in `docs/workflow/repository_settings.md` if automation was not used;
+3. confirm bootstrap verification passed, or apply the manual settings in `docs/workflow/repository_settings.md` if automation was not used;
 4. configure Google Drive publication only when the project needs external PDF delivery;
 5. create project-specific architecture/research/specification files rather than overloading workflow documentation;
 6. keep stable decisions in Git, not only in chat.
@@ -35,6 +35,10 @@ After creating a repository from this template:
 - Update durable state when a decision becomes stable.
 - Keep exploratory notes separate from normative specifications.
 - Use an Essence when independent implementers need to produce materially equivalent behavior.
+- Before authoring or remediating an Essence, follow `docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md`.
+- Before a formal freeze, follow `docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md`.
+- Formal audit rounds use fresh isolated auditors against one immutable repository SHA; auditors do not inherit remediation reasoning or one another's findings.
+- Reconciliation and owner-decision batching occur only after all required auditors complete.
 - Reopen a frozen Essence explicitly when its contract must change.
 
 ## Before handoff
