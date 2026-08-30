@@ -1,80 +1,227 @@
 # AI Agent GitHub Workflow
 
-Use GitHub as a transactional shared state system, not as an unstructured notebook.
+## Purpose
 
-## Default transaction
+Use GitHub as transactional shared state, not as an unstructured notebook or execution scratchpad.
+
+The objective is deterministic repository state transitions with optimistic concurrency, exact-head validation, idempotent recovery, and complete post-merge verification.
+
+The normative terms **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are used deliberately.
+
+## 1. Golden path
 
 ```text
-read main
--> define final diff
--> create feature branch
--> mutate only intended paths
--> open one focused PR
--> validate exact head SHA
--> review semantic diff
--> squash merge exact validated head
--> re-read main
+READ latest main
+-> RECORD exact base SHA
+-> PLAN exact intended diff
+-> CREATE one canonical task branch
+-> WRITE only intended paths
+-> VALIDATE content and diff
+-> RECONCILE against latest main
+-> OPEN one focused PR
+-> VERIFY mergeability + required checks + exact head SHA
+-> SQUASH MERGE exact validated head
+-> VERIFY main
+-> VERIFY applicable artifacts/publication
+-> CLEAN branch/transaction state
+-> DONE
 ```
 
-## Before mutation
+Deviations are recovery paths, not alternative normal workflows.
 
-1. Read current `main` and task-relevant files.
-2. Search for overlapping open PRs/branches when concurrency is plausible.
-3. Record the base/head SHA used for the change.
-4. Decide which files are in scope before writing.
+## 2. Safety invariants
 
-Do not overwrite or stage unrelated work.
+Every agent-initiated mutation MUST obey:
 
-## Branch and PR rules
+1. Never write directly to `main`, except the unavoidable first commit of an empty repository.
+2. Never force-update `main`.
+3. Never create noop/probe/placeholder repository files merely to test API behavior.
+4. Never merge unresolved conflicts or knowingly failing required checks.
+5. Merge only the exact PR head SHA that passed required validation.
+6. Unknown write outcome is a read/reconciliation problem, not permission for blind retry.
+7. A successful merge is not completion; main verification, applicable publication, and cleanup remain part of the transaction.
+8. Preserve unrelated work and treat concurrent `main` advancement as normal optimistic concurrency.
 
-- Never write directly to `main`, except the unavoidable first commit of an empty repository.
-- Use a task-specific branch.
-- Prefer one PR per logical outcome.
-- PR text should state purpose, material behavior changes, validation, and known limitations.
-- Do not create duplicate PRs for the same branch.
+## 3. Fixed preflight
 
-## Exact-head validation
+Before creating a branch or performing a write:
 
-A green historical run is not sufficient. Before merge:
+1. fetch latest `main`;
+2. record its exact commit SHA;
+3. read task-relevant files from current repository state;
+4. search for overlapping active branches/PRs when concurrency is plausible;
+5. identify authoritative contracts and intended final state;
+6. determine intended changed paths;
+7. create one canonical task branch from the recorded SHA.
 
-1. read the PR's current head SHA;
-2. confirm required validation ran against that exact SHA;
-3. confirm the PR remains mergeable against the intended base;
-4. inspect the final diff;
-5. merge using the exact expected head SHA when the API supports it.
+A conversation transcript or earlier fetched copy is not a substitute for current repository state.
 
-If the head moved after validation, validate again.
+## 4. One task, one canonical transaction
 
-## Concurrency
+Each task MUST have one canonical working branch and, after PR creation, one canonical PR.
 
-When `main` moves while a task is in flight:
+Do not casually create `-v2`, `-final`, or replacement branches after an ambiguous result. First rediscover actual state and recover the existing transaction.
 
-- compare the new base with the task branch semantically;
-- do not assume an old clean merge is still safe;
-- rebase/update only when required;
-- rerun validation after any head change.
+A replacement branch MAY be created only when the existing transaction cannot safely continue. Superseded task-owned PRs/branches MUST then be explicitly cleaned.
 
-For publication workflows, use concurrency groups that cancel obsolete runs for the same PR/ref when newer commits supersede them.
+## 5. Concurrency and main advancement
 
-## Narrow edits
+Multiple unrelated tasks MAY proceed concurrently. Each mutable task owns only its branch/PR, never `main`.
 
-For one narrow exact-text change to an existing tracked UTF-8 file, prefer `tools/safe_patch.py` when possible. It provides:
+Before merge, reconcile the task against latest `main`:
 
-- protected-branch rejection;
-- exact expected-HEAD guard;
-- unique anchor requirement;
-- changed-line budget;
-- syntax/Markdown validation;
-- atomic write and rollback.
+- if intervening changes are unrelated, replay/rebase/update as needed and revalidate;
+- if they overlap semantically, re-read current authority and recompute intended final state;
+- never force an old patch over newer conflicting content;
+- any change to the PR head after validation requires validation of the new head.
 
-For connector-only mutation, use Remote Safe Patch instead of broad write access. See `remote_safe_patch.md`.
+`behind main` does not automatically mean stale, and an old branch is not automatically safe to delete.
 
-## Merge
+## 6. Mutation strategy
 
-Prefer squash merge for focused task branches. Supply the expected PR head SHA if supported so a concurrently modified branch cannot be merged accidentally.
+Choose the narrowest safe mechanism that matches the intended change:
+
+```text
+new file
+-> normal create-file path
+
+narrow existing tracked UTF-8 edit with local execution
+-> Safe Patch
+
+narrow existing tracked UTF-8 edit with connector-only execution
+-> Remote Safe Patch
+
+intentional whole-document rewrite
+-> full replacement when the rewrite itself is the task
+```
+
+Read `safe_patch.md` and `remote_safe_patch.md` before using those paths.
+
+A low-level full-blob API does not justify reconstructing a large current file for a small semantic edit.
+
+## 7. Deterministic diff gate
+
+Before opening a PR, verify:
+
+- changed files match intended scope;
+- no temporary/control/generated/unrelated files are present unless intentionally part of the task;
+- no accidental deletions, renames, or formatting churn occurred;
+- complete resulting file contents express the intended final state;
+- required syntax, Markdown, build, test, or workflow validation passed.
+
+Diff validation and content validation are separate gates.
+
+For Markdown changes, follow `docs/WRITING_AND_MARKDOWN_RULES.md` and run the repository-required Markdown/math/link checks where applicable.
+
+For workflow changes, validate the actual workflow behavior when practical; YAML parsing alone is not sufficient evidence.
+
+## 8. PR and exact-head merge gate
+
+After the branch passes validation:
+
+1. open one focused non-draft PR unless the owner explicitly requests review-only/draft mode;
+2. record PR number and current head SHA;
+3. inspect final diff and mergeability;
+4. confirm all required checks correspond to that exact head SHA;
+5. immediately before merge, re-read PR head and latest relevant base state;
+6. if head or materially relevant base state changed, revalidate;
+7. squash merge using `expected_head_sha` or equivalent guard when supported.
+
+A historical green run for an older SHA is not merge authority.
+
+## 9. Post-merge verification
 
 After merge:
 
-- verify `main` contains the intended result;
-- verify automatic branch deletion if configured;
-- inspect post-merge publication or deployment workflows when applicable.
+1. verify the PR is actually merged;
+2. verify intended content exists on `main`;
+3. record final `main` SHA;
+4. verify each applicable post-merge CI/publication/deployment step rather than inferring success from an unrelated umbrella status;
+5. verify artifacts correspond to the intended run/SHA when metadata permits;
+6. verify external publication such as Google Drive when configured;
+7. verify automatic branch deletion or delete the task branch explicitly;
+8. remove superseded task-owned transaction state;
+9. confirm no unintended repository state remains.
+
+If cleanup cannot be completed because of capability/permission limits, report it as incomplete rather than silently declaring DONE.
+
+## 10. Transaction state model
+
+A normal repository task conceptually moves through:
+
+```text
+PREFLIGHT
+-> BRANCH_READY
+-> CHANGES_WRITTEN
+-> VALIDATED
+-> PR_OPEN
+-> PR_VERIFIED
+-> MERGED
+-> MAIN_VERIFIED
+-> PUBLICATION_VERIFIED    # when applicable
+-> CLEANED
+-> DONE
+```
+
+An agent MUST NOT skip a state whose invariant has not been established.
+
+This state model is conceptual and may be implemented by an external durable orchestrator; GitHub remains authoritative for GitHub-owned facts such as commits, refs, PR state, checks, merges, and artifacts.
+
+## 11. Failure recovery and task-level idempotence
+
+Individual API calls are not always idempotent. The task workflow SHOULD be.
+
+For timeout, interruption, ambiguous tool result, or crash:
+
+```text
+UNKNOWN RESULT
+-> READ actual branch / file / PR / main / workflow state
+-> DETERMINE which invariant currently holds
+-> ACT only if desired state is not already present
+-> REVALIDATE
+-> CONTINUE
+```
+
+Never blindly retry create/update/merge/close/delete after an unknown outcome.
+
+A durable external orchestrator SHOULD persist logical workflow state, but after restart it MUST reconcile persisted state with real GitHub state before issuing another side effect.
+
+## 12. Audit/remediation integration
+
+Formal Essence audit/remediation follows `INDEPENDENT_PRE_FREEZE_AUDIT.md`.
+
+Repository integration remains deterministic even when reasoning is multi-agent:
+
+```text
+parallel read-only audit round against exact SHA
+-> canonical finding reconciliation
+-> owner decisions if required
+-> separate remediation transaction
+-> PR / exact-head validation / squash merge
+-> post-merge verification
+-> next fresh audit round against new main SHA
+```
+
+Auditor findings or LLM assertions do not substitute for GitHub-state validation.
+
+## 13. Branch hygiene
+
+Task cleanup is mandatory. Automatic deletion of merged PR branches SHOULD be enabled for repositories using short-lived task branches, but agents MUST still verify cleanup.
+
+Maintenance of unrelated old branches/PRs SHOULD be a separate explicit maintenance task. Do not opportunistically delete another task's state merely because it is old or behind `main`.
+
+## 14. Definition of done
+
+For a normal repository task, DONE requires all applicable conditions:
+
+```text
+intended change exists on main
+required validation passed against the exact integrated change
+focused PR was squash-merged
+main was re-read and verified
+applicable CI/artifacts/publication were verified
+source branch and task-owned transactional state were cleaned
+no known task-scoped blocker remains
+```
+
+An edit, open PR, green historical check, or merge without required post-merge verification is not completion.
