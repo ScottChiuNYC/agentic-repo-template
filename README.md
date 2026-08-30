@@ -12,7 +12,7 @@ ART treats Git—not chat history—as durable project memory. It gives human de
 - **Fail-closed editing**: Safe Patch and Remote Safe Patch reject stale heads, ambiguous anchors, oversized diffs, protected targets, and invalid output.
 - **Reference ingestion**: a source-versioned PDF transcription/OCR control plane for reusable research context.
 - **Documentation validation**: Markdown/math checks run before publication.
-- **Whole-repository publication**: CodeBinder converts the repository to a validated PDF artifact.
+- **Project-focused publication**: CodeBinder builds a validated human-facing PDF from project knowledge and reader-relevant implementation while excluding reusable ART operating infrastructure.
 - **Optional Google Drive delivery**: Drive upload is enabled only when all four required repository secrets are configured; otherwise it is skipped cleanly.
 - **Automated repository bootstrap**: `bootstrap/new_repo.sh` creates a repository from ART, applies non-inherited GitHub settings, optionally installs Drive secrets from an external secret file, and verifies the resulting configuration.
 - **Repository Factory control plane**: the ART repository can accept an owner-authored GitHub issue and run the bootstrap through GitHub Actions using a protected `REPO_FACTORY_TOKEN`.
@@ -38,7 +38,7 @@ Exact-head validation
 Squash merge to main
        |
        v
-CodeBinder PDF artifact
+Project-focused CodeBinder PDF artifact
        |
        +--> GitHub Actions artifact
        |
@@ -129,6 +129,7 @@ Secret values are never stored in ART and are not inherited by repositories crea
 - Automation should fail closed when state, provenance, or intent is ambiguous.
 - Project-specific domain assumptions do not belong in reusable infrastructure.
 - Credentials belong in external secret stores or GitHub Actions secrets, never in template files.
+- Human-facing publication should omit reusable machine-facing infrastructure unless a child repository explicitly promotes it into project knowledge.
 
 ## Scope
 
