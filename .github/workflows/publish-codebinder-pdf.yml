@@ -72,13 +72,30 @@ jobs:
           rm -rf build/codebinder-source build/sphinx dist
           mkdir -p build
           python -m codebinder . build/codebinder-source
+
           for notebook in \
-            build/codebinder-source/AGENTS.md.ipynb \
-            build/codebinder-source/docs/START_HERE.md.ipynb \
+            build/codebinder-source/README.md.ipynb \
             build/codebinder-source/docs/CURRENT_STATE.md.ipynb; do
-            [[ -f "$notebook" ]] || { echo "::error::CodeBinder omitted $notebook"; exit 1; }
+            [[ -f "$notebook" ]] || { echo "::error::CodeBinder omitted project-facing $notebook"; exit 1; }
           done
+
+          excluded_paths=(
+            'build/codebinder-source/AGENTS.md.ipynb'
+            'build/codebinder-source/docs/START_HERE.md.ipynb'
+            'build/codebinder-source/docs/WRITING_AND_MARKDOWN_RULES.md.ipynb'
+            'build/codebinder-source/docs/workflow/AI_AGENT_OPERATING_POLICY.md.ipynb'
+            'build/codebinder-source/docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md.ipynb'
+            'build/codebinder-source/.github'
+            'build/codebinder-source/bootstrap'
+            'build/codebinder-source/tools'
+          )
+          for excluded in "${excluded_paths[@]}"; do
+            [[ ! -e "$excluded" ]] || { echo "::error::Machine-facing ART infrastructure leaked into project PDF source: $excluded"; exit 1; }
+          done
+
           [[ ! -e build/codebinder-source/build/codebinder-source ]] || { echo '::error::CodeBinder recursively ingested generated output'; exit 1; }
+          echo 'Confirmed: CodeBinder source is project-focused and excludes ART operating infrastructure.'
+
           cp tools/sphinx/conf.py build/codebinder-source/conf.py
           cat >> build/codebinder-source/conf.py <<'PYCONF'
           latex_elements = {
@@ -129,7 +146,7 @@ jobs:
             pdf_path=$(find build/sphinx/latex -maxdepth 1 -type f -name '*.pdf' -print -quit)
             [[ -n "$pdf_path" ]] || return 1
             toc_path="${pdf_path%.pdf}.toc"
-            python tools/validate_pdf_build.py --pdf "$pdf_path" --toc "$toc_path" --log "$log_path" --min-entries 3 --min-pages 1
+            python tools/validate_pdf_build.py --pdf "$pdf_path" --toc "$toc_path" --log "$log_path" --min-entries 2 --min-pages 1
           }
 
           run_latexmk build/latexmk-primary.log xelatex
