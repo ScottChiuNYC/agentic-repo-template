@@ -73,28 +73,20 @@ jobs:
           mkdir -p build
           python -m codebinder . build/codebinder-source
 
-          for notebook in \
-            build/codebinder-source/README.md.ipynb \
-            build/codebinder-source/docs/CURRENT_STATE.md.ipynb; do
-            [[ -f "$notebook" ]] || { echo "::error::CodeBinder omitted project-facing $notebook"; exit 1; }
-          done
-
-          excluded_paths=(
+          required_notebooks=(
+            'build/codebinder-source/README.md.ipynb'
             'build/codebinder-source/AGENTS.md.ipynb'
-            'build/codebinder-source/docs/START_HERE.md.ipynb'
-            'build/codebinder-source/docs/WRITING_AND_MARKDOWN_RULES.md.ipynb'
+            'build/codebinder-source/docs/CURRENT_STATE.md.ipynb'
             'build/codebinder-source/docs/workflow/AI_AGENT_OPERATING_POLICY.md.ipynb'
             'build/codebinder-source/docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md.ipynb'
-            'build/codebinder-source/.github'
-            'build/codebinder-source/bootstrap'
-            'build/codebinder-source/tools'
+            'build/codebinder-source/docs/workflow/DURABLE_EXECUTION_PROTOCOL.md.ipynb'
           )
-          for excluded in "${excluded_paths[@]}"; do
-            [[ ! -e "$excluded" ]] || { echo "::error::Machine-facing ART infrastructure leaked into project PDF source: $excluded"; exit 1; }
+          for notebook in "${required_notebooks[@]}"; do
+            [[ -f "$notebook" ]] || { echo "::error::Review-complete CodeBinder conversion omitted $notebook"; exit 1; }
           done
 
           [[ ! -e build/codebinder-source/build/codebinder-source ]] || { echo '::error::CodeBinder recursively ingested generated output'; exit 1; }
-          echo 'Confirmed: CodeBinder source is project-focused and excludes ART operating infrastructure.'
+          echo 'Confirmed: CodeBinder source includes representative project and AI/workflow operating content.'
 
           cp tools/sphinx/conf.py build/codebinder-source/conf.py
           cat >> build/codebinder-source/conf.py <<'PYCONF'

@@ -1,31 +1,14 @@
-# Generated / transient content
+# Generated / transient / clearly non-reviewable content
 build/
 dist/
 .git/
 ref/transcripts/
 __pycache__/
 *.pyc
+.github/safe-patch-request/
+.github/reference-ingestion-request/
 
-# Machine-facing ART infrastructure. Keep tracked in Git, but omit from the
-# human-facing project knowledge PDF.
-.github/
-bootstrap/
-tools/
-AGENTS.md
-LICENSE
-.gitignore
-.codebinderignore
-docs/START_HERE.md
-docs/WRITING_AND_MARKDOWN_RULES.md
-docs/workflow/AI_AGENT_GITHUB_WORKFLOW.md
-docs/workflow/AI_AGENT_OPERATING_POLICY.md
-docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md
-docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md
-docs/workflow/codebinder_pdf_pipeline.md
-docs/workflow/learning.md
-docs/workflow/reference_ingestion.md
-docs/workflow/reference_ingestion_protocol.md
-docs/workflow/remote_safe_patch.md
-docs/workflow/repository_factory.md
-docs/workflow/repository_settings.md
-docs/workflow/safe_patch.md
+# Review-complete policy while the shared AI workflow is still emerging:
+# tracked semantic and operational content stays visible in the CodeBinder PDF,
+# including AGENTS.md, .github/, bootstrap/, tools/, and docs/workflow/.
+# Do not exclude a tracked path merely because its primary reader is an AI agent.
