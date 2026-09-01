@@ -219,6 +219,7 @@ intended change exists on main
 required validation passed against the exact integrated change
 focused PR was squash-merged
 main was re-read and verified
+canonical current-state artifact was re-read and is materially accurate
 applicable CI/artifacts/publication were verified
 source branch and task-owned transactional state were cleaned
 no known task-scoped blocker remains
