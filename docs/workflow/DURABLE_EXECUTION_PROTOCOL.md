@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the generic repository protocol for efficient long-running AI work, cross-run continuity, executor neutrality, and durable audit/remediation handoff.
+This document defines the generic repository protocol for efficient long-running AI work, cross-run continuity, executor neutrality, durable current-state handoff, and durable audit/remediation handoff.
 
 It supplements `AI_AGENT_OPERATING_POLICY.md`, `AI_AGENT_GITHUB_WORKFLOW.md`, and `INDEPENDENT_PRE_FREEZE_AUDIT.md`. Within the scope owned here, this document is authoritative when older inherited wording is ambiguous or stricter than the rules below.
 
@@ -16,16 +16,17 @@ A second optimization principle is:
 
 > **Reason as many times as necessary; mutate shared GitHub state as few times as possible.**
 
-Neither principle weakens validation, exact-head merge safety, or post-merge verification.
+Neither principle weakens validation, exact-head merge safety, current-state accuracy, or post-merge verification.
 
 ## 1. Scope and ownership
 
-This protocol owns four generic concerns:
+This protocol owns five generic concerns:
 
 1. pre-final-head transaction convergence and latency reduction;
 2. durable checkpoints and restart after interrupted agent execution;
 3. executor-neutral workflow identity;
-4. audit-relevant authority isolation and durable Auditor/Reconciler/Remediator handoff.
+4. audit-relevant authority isolation and durable Auditor/Reconciler/Remediator handoff;
+5. closeout synchronization of the repository's canonical current-state artifact.
 
 Project-specific scientific, product, security, deployment, cost, model-selection, or backend-runtime policy remains project-owned.
 
@@ -41,6 +42,7 @@ READ latest main and authorities
 -> PLAN the complete intended final diff
 -> CREATE one canonical task branch
 -> CONVERGE the branch using cheap/readback/guarded validation
+-> RE-EVALUATE canonical current-state artifact; update if materially changed
 -> establish one intended final branch head
 -> OPEN one focused PR
 -> run required expensive final-head validation
@@ -62,7 +64,7 @@ In particular:
 - once a PR exists, avoid changing its head unless validation discovers a real defect or current `main` requires reconciliation;
 - a changed PR head invalidates earlier head-specific merge authority and MUST be revalidated.
 
-This optimization is subordinate to correctness. A required build, test, audit, publication, or exact-head gate MUST NOT be skipped merely to reduce wall-clock time.
+This optimization is subordinate to correctness. A required build, test, audit, publication, current-state synchronization, or exact-head gate MUST NOT be skipped merely to reduce wall-clock time.
 
 ## 3. Validation placement
 
@@ -110,6 +112,7 @@ canonical branch
 current exact branch head SHA
 intended outcome / governing authority
 durable owner decisions already made
+canonical current-state artifact and whether it needs synchronization
 open PR and exact head, if any
 validation already completed and against which SHA
 remaining transaction state
@@ -124,6 +127,7 @@ An agent approaching an execution limit MUST NOT:
 - weaken validation;
 - merge an incompletely validated head;
 - mark a finding closed without durable evidence;
+- skip required current-state synchronization;
 - skip publication verification;
 - claim completion because the conversation is ending.
 
@@ -167,6 +171,7 @@ Changing executor MUST NOT silently change:
 - audit independence requirements;
 - owner-decision boundaries;
 - validation requirements;
+- current-state closeout requirements;
 - exact-head merge semantics;
 - durable handoff format;
 - Definition of Done.
@@ -256,7 +261,27 @@ Remediator bootstrap identifies the repository and round-control identity after 
 
 Private chain-of-thought and copied cross-chat transcripts are not workflow inputs.
 
-## 10. Measurement and workflow optimization
+## 10. Current-state closeout invariant
+
+Every repository SHOULD designate one canonical current-state artifact. The default is `docs/CURRENT_STATE.md`; a project MAY use a different explicit artifact such as `docs/CURRENT_RESEARCH_STATE.md`.
+
+The current-state artifact is a durable handoff/checkpoint, not ordinary narrative documentation. Before final-head validation for every substantive repository task, the executing agent MUST re-read it and determine whether the task materially changes any recorded:
+
+- current phase, status, or active workstream;
+- completed milestone or capability;
+- active durable decision;
+- blocker, unresolved question, or known risk;
+- immediate next work;
+- authoritative artifact, contract, or durable workflow record;
+- validation, deployment, publication, or release state.
+
+If any of those materially change, the agent MUST update the canonical current-state artifact in the same task/PR before establishing the intended final head. If none change, the agent SHOULD leave the file untouched; this rule is not permission for timestamp-only or formatting-only churn.
+
+After merge, the agent MUST verify that the integrated current-state artifact is still materially accurate against the resulting `main` state.
+
+A task MUST NOT be declared DONE when a fresh agent reading the canonical current-state artifact would reconstruct materially stale project state because of that task.
+
+## 11. Measurement and workflow optimization
 
 When evaluating workflow efficiency, count state-transition cost rather than only commit count.
 
@@ -278,7 +303,7 @@ A good optimization reduces unnecessary state transitions and repeated expensive
 
 Decision latency and execution latency SHOULD be distinguished. Time spent obtaining a genuine owner scientific/product decision is not the same problem as avoidable repository transaction latency after the decision is fixed.
 
-## 11. Consumer synchronization
+## 12. Consumer synchronization
 
 ART is the canonical generic source for this protocol. Existing ART consumers SHOULD synchronize the generic semantics while preserving project-local additions.
 
@@ -286,7 +311,7 @@ Consumer synchronization is a semantic reconciliation, not a blind file overwrit
 
 A project-specific protocol may extend the generic contract, but inherited generic behavior SHOULD remain recognizable so that an agent or future orchestrator can switch among repositories without inventing a different workflow each time.
 
-## 12. Definition of successful adoption
+## 13. Definition of successful adoption
 
 A repository has adopted this protocol when all applicable statements are true:
 
@@ -298,5 +323,7 @@ executor choice does not redefine workflow semantics
 formal audit freshness uses audit-relevant authority isolation
 formal audit results and owner decisions have durable handoff
 role bootstrap does not require owner copy/paste of private chats
+canonical current-state artifact is re-evaluated before final-head validation
+DONE never leaves that artifact materially stale because of the task
 exact-head merge and post-merge verification remain mandatory
 ```

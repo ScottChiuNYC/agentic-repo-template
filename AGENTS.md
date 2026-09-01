@@ -27,6 +27,7 @@ For a formal fresh independent pre-freeze audit, reconciliation, or remediation 
 - Do not treat executable code as a substitute for a missing mathematical or behavioral contract.
 - Keep implementation and documentation synchronized when behavior, interfaces, workflows, or configuration change.
 - Do not use GitHub as a scratchpad. Read current state, plan the final diff, then write.
+- Before final-head validation, re-read and re-evaluate the repository's canonical current-state artifact (normally `docs/CURRENT_STATE.md`). Update it in the same task when the change materially alters recorded phase/status, completed milestones/capabilities, active decisions, blockers/open questions, immediate next work, authoritative artifacts, or validation/deployment/publication state; otherwise leave it unchanged.
 - Converge semantic edits on the task branch before opening the PR when possible; expensive validation should target the intended final head rather than every intermediate edit.
 - Long tasks MUST leave durable repository/workflow checkpoints sufficient for a new run to resume from exact state without private scratch reasoning.
 - Executor choice is runtime policy: human-supervised ChatGPT, coding agents, API workers, or an orchestrator follow the same repository authority, role boundaries, validation, and Definition of Done.
