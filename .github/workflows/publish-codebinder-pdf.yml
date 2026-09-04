@@ -56,7 +56,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             pandoc latexmk poppler-utils \
             texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended \
-            texlive-science texlive-xetex texlive-luatex \
+            texlive-science texlive-xetex texlive-luatex texlive-lang-cjk \
             fonts-freefont-otf fonts-noto-cjk fontconfig
           sudo fc-cache -f
           python -m pip install --upgrade pip
