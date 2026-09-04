@@ -34,6 +34,12 @@ repository validation
 
 The workflow never executes project notebooks or application/research code merely to create the PDF.
 
+## CJK text layout
+
+The shared PDF workflow must support natural line breaking for Chinese/Japanese/Korean prose without requiring authors to insert manual spaces or hard line breaks into Markdown.
+
+XeLaTeX builds therefore enable `xeCJK` and explicit Chinese line-breaking rules while retaining the Noto CJK font family. This is template-level publication infrastructure: child repositories should inherit the behavior rather than patching source prose to compensate for PDF overflow.
+
 ## Current review-complete scope
 
 While ART and its consumer workflow are still evolving, keep tracked content that can materially affect repository behavior, authority, reviewability, or future implementation, including examples such as:
