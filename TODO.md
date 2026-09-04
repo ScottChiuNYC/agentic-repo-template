@@ -37,3 +37,4 @@
 換句話說：
 
 > ART 應盡量把「要求 LLM 記住一整本 operating manual」改成「一個很小的 state machine；每個 state 只暴露當下必要的 contract」。
+
