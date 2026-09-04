@@ -99,6 +99,11 @@ jobs:
               "preamble": r"""
           \usepackage{fancyhdr}
           \usepackage{mathrsfs}
+          \usepackage{iftex}
+          \ifXeTeX
+            \XeTeXlinebreaklocale "zh"
+            \XeTeXlinebreakskip = 0pt plus 1pt
+          \fi
           \setcounter{tocdepth}{4}
           \setcounter{secnumdepth}{4}
           \geometry{left=72pt,right=72pt,top=72pt,bottom=90pt,headheight=0pt,headsep=0pt,footskip=8mm}
