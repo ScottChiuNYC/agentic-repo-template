@@ -38,3 +38,24 @@
 
 > ART 應盡量把「要求 LLM 記住一整本 operating manual」改成「一個很小的 state machine；每個 state 只暴露當下必要的 contract」。
 
+## Adaptive independent-auditor count
+
+### Proposal
+
+Independent pre-freeze audit rounds need not use the same auditor count at every convergence stage. Consider an adaptive policy:
+
+```text
+ordinary convergence rounds: 3 auditors
+near-PASS confirmation:      5 auditors
+final freeze candidate:      7-10 auditors
+```
+
+The goal is to spend additional independent-review capacity when marginal coverage is most valuable. Early rounds already known to contain blockers may gain little from expanding every round to ten auditors, while a near-freeze candidate benefits more from a larger search for residual blind spots.
+
+### Questions to resolve before promotion into protocol
+
+- [ ] Define objective escalation signals, such as canonical finding count, overlap ratio across auditors, new owner-decision count, or recent rounds with zero/near-zero unique findings.
+- [ ] Preserve the existing invariant that all auditors in one round evaluate the same immutable SHA and remain isolated from sibling findings before sealing.
+- [ ] Measure diminishing returns from additional auditors, including correlated blind spots and reconciliation cost.
+- [ ] Decide whether auditor diversity should include only independent sessions or also model/configuration/reasoning diversity when the execution environment supports it.
+- [ ] Validate the proposal empirically across several real audit-remediation loops before making it normative ART policy.
