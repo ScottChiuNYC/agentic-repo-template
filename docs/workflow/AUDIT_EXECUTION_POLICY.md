@@ -41,9 +41,13 @@ provider_auto
 
 Semantics:
 
-- `exact`: the slot MUST run on the requested executor and requested model identity;
-- `allowed_set`: the slot MAY run only on one of the owner-approved executor/model choices durably recorded for that slot or round;
-- `provider_auto`: the owner explicitly accepts the provider/runtime's automatic model selection for that slot.
+- `exact`: the slot MUST run on the requested executor and requested model identity. `allow_automatic_substitution` MUST be `false`.
+- `allowed_set`: the durable round/slot state MUST record the complete owner-approved executor/model set and one preferred `requested_executor` / `requested_model` pair. If `allow_automatic_substitution = true`, the dispatcher MAY automatically choose or fall back to another member of that recorded set. If it is `false`, only the preferred pair may be launched automatically; another approved-set member requires a new durable owner/policy selection before dispatch.
+- `provider_auto`: the owner explicitly delegates model selection to the named provider/runtime while retaining the requested executor/provider boundary. Provider-internal automatic model selection is intrinsic to this mode and is not a substitution. `allow_automatic_substitution` MUST be `false`; switching to another executor/provider still requires a new durable owner/policy selection.
+
+Any other combination of `model_selection_mode` and `allow_automatic_substitution` is invalid configuration and MUST block dispatch.
+
+`allow_automatic_substitution` never broadens the choices authorized by `model_selection_mode`. In particular, it cannot convert `exact` or `provider_auto` into an implicit fallback policy.
 
 If the round does not contain a complete durable execution policy, a dispatcher MUST NOT infer one merely from whichever backend is easiest to launch.
 
@@ -51,7 +55,7 @@ A repository or orchestrator MAY maintain a persistent owner-approved default ex
 
 ## 3. No silent fallback
 
-For formal audit work, automatic executor/model substitution is prohibited unless the durable execution policy explicitly permits it.
+For formal audit work, automatic executor/model substitution is prohibited unless the durable execution policy explicitly permits it under the rules above.
 
 In particular, the following are invalid under `model_selection_mode = exact`:
 
@@ -59,11 +63,11 @@ In particular, the following are invalid under `model_selection_mode = exact`:
 ChatGPT -> Copilot
 Copilot -> API worker
 requested flagship model -> cheaper model
-requested model -> provider Auto
+requested model -> provider_auto
 requested exact model -> unknown/unverifiable model
 ```
 
-If the requested executor/model is unavailable, over quota, unsupported by the current transport, or cannot be verified, the workflow MUST fail closed into an execution-blocked state rather than silently continue with a substitute.
+If the requested executor/model is unavailable, over quota, unsupported by the current transport, or cannot be verified, the workflow MUST fail closed into an execution-blocked state rather than silently continue with a substitute, except for an explicitly authorized `allowed_set` fallback.
 
 Recommended durable status:
 
@@ -88,6 +92,8 @@ actual_executor
 actual_model
 ```
 
+For `allowed_set`, the durable round/slot record MUST also identify the complete approved set used for validation.
+
 Where available, also record stable runtime evidence such as:
 
 ```text
@@ -102,6 +108,8 @@ The `actual_model` field MUST use the strongest identity the execution platform 
 
 If an exact-model round uses a backend that cannot attest the actual model, that slot does not satisfy the requested execution policy.
 
+For `provider_auto`, the actual model SHOULD still be recorded when the provider attests it; absence of a specific model identity does not invalidate the slot when the owner explicitly authorized provider-level automatic selection and the requested provider/executor identity is verifiable.
+
 ## 5. Slot validity and reconciliation
 
 Before a sealed raw result is counted toward the required Auditor set, the Reconciler or deterministic control layer MUST verify execution-policy compliance.
@@ -109,10 +117,13 @@ Before a sealed raw result is counted toward the required Auditor set, the Recon
 A slot is invalid when, for example:
 
 - requested and actual executor/model do not match an `exact` policy;
-- an actual choice is outside an `allowed_set`;
+- an actual choice is outside the durable `allowed_set`;
+- an automatic move away from the preferred pair occurred with `allowed_set` and `allow_automatic_substitution = false`;
 - provider automatic selection occurred without `provider_auto` authorization;
+- `provider_auto` changed the requested executor/provider boundary;
 - required provenance is missing or cannot establish compliance;
-- a silent fallback occurred.
+- a silent fallback occurred;
+- the selection-mode / substitution-flag combination was invalid.
 
 An execution-invalid slot is neither `PASS` nor `FAIL` evidence for the round. It MUST be excluded and replaced by a compliant fresh slot before the round can reach a canonical verdict.
 
@@ -145,7 +156,7 @@ owner records a persistent execution policy
 -> dispatcher applies it automatically to eligible rounds
 -> workers execute only within that policy
 -> requested backend unavailable
-   -> fail closed / pause according to owner notification policy
+   -> use an explicitly authorized allowed_set fallback, or fail closed
 -> genuine repository owner decision
    -> WAITING_FOR_OWNER
 ```
@@ -167,12 +178,13 @@ A worker MUST NOT treat a prompt-level executor/model string as permission to ig
 A dispatcher/orchestrator that launches formal audit workers MUST:
 
 1. read the current owner-approved execution policy;
-2. bind each slot to its requested executor/model before launch;
-3. refuse unsupported silent substitution;
-4. record launch provenance and stable runtime identity where available;
-5. reconcile unknown launch outcomes before retry;
-6. preserve sibling-auditor isolation;
-7. require provenance compliance before marking a slot valid and complete.
+2. validate the selection-mode / substitution-flag combination before launch;
+3. bind each slot to its requested executor/model and any complete `allowed_set` before launch;
+4. refuse unsupported silent substitution;
+5. record launch provenance and stable runtime identity where available;
+6. reconcile unknown launch outcomes before retry;
+7. preserve sibling-auditor isolation;
+8. require provenance compliance before marking a slot valid and complete.
 
 The dispatcher owns execution eligibility and launch policy. The Auditor owns substantive independent review. Neither role may silently rewrite the other's contract.
 
@@ -188,6 +200,7 @@ Unless durable owner policy explicitly says otherwise, formal audit execution is
 
 ```text
 selection mode: exact when an exact executor/model was requested
+allow_automatic_substitution: false for exact and provider_auto
 silent executor/model substitution: prohibited
 unknown actual model under exact mode: invalid slot
 ```
