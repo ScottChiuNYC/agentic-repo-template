@@ -38,6 +38,61 @@
 
 > ART 應盡量把「要求 LLM 記住一整本 operating manual」改成「一個很小的 state machine；每個 state 只暴露當下必要的 contract」。
 
+## Single dispatcher/orchestrator ownership
+
+### Problem
+
+ART's audit/remediation semantics already aim for low owner interruption, but execution ownership is still ambiguous in practice. Different role agents may independently initialize the next round, create raw-result slots, dispatch auditors, continue remediation, or instead ask the owner to copy prompts manually. GitHub mutations performed through an owner-authorized connector may also appear under the owner's identity, making it difficult to reconstruct which role or runtime initiated a transition.
+
+The result is semantically valid but operationally inconsistent behavior: some audit loops continue automatically while others stop for manual routing, and the owner cannot reliably tell why a durable workflow object was created.
+
+### Proposal
+
+Introduce one explicit **Dispatcher / Orchestrator** as the only role allowed to advance the audit/remediation state machine and spawn downstream workers. Auditor, Reconciler, and Remediator become pure workers that publish their own durable completion state but do not independently decide or initiate the next workflow transition.
+
+Target behavior:
+
+```text
+remediation integrated + publication verified
+-> Dispatcher initializes next exact-SHA round and isolated auditor slots
+-> Dispatcher launches auditors
+-> all required slots SEALED
+-> Dispatcher launches Reconciler
+-> canonical FAIL with auto-remediable findings only
+-> Dispatcher launches Remediator automatically
+-> canonical owner decision required
+-> WAITING_FOR_OWNER and interrupt owner once
+-> durable owner resolution
+-> Dispatcher resumes automatically
+-> canonical PASS
+-> mechanical freeze writeback + publication verification
+-> DONE
+```
+
+Worker boundaries should be explicit:
+
+- **Auditor**: inspect the immutable audit SHA and seal only its assigned raw-result slot.
+- **Reconciler**: consume sealed slots and publish the canonical verdict/findings/owner-decision set.
+- **Remediator**: implement only the canonical remediation transaction and publish durable completion evidence.
+- **Dispatcher / Orchestrator**: observe durable state, enforce transition preconditions, choose/launch executors, and advance the state machine.
+
+Owner interruption policy should be a first-class runtime mode. A likely default is `full_auto`, where only genuine owner-decision or owner-only-action states interrupt the owner; a `supervised` mode can require approval at selected transitions for debugging or high-risk repositories.
+
+Every machine-created durable object should carry reconstructable provenance where the transport permits it, for example `created_by_role`, `trigger`, `executor`, `parent_round`, and `dispatch_id`. The objective is that a future reader can tell not merely who GitHub attributes the mutation to, but **which workflow role created it and why**.
+
+### Questions to resolve before promotion into protocol
+
+- [ ] Define the canonical machine-readable workflow states and transition preconditions owned by the Dispatcher.
+- [ ] Decide which transitions may be fully automatic and which repository classes require supervised mode.
+- [ ] Define durable provenance fields and how they map onto GitHub issues/PRs versus an external orchestrator state store.
+- [ ] Ensure crash/restart recovery is idempotent: the Dispatcher must reconcile actual GitHub state before creating or launching anything new.
+- [ ] Enforce auditor isolation structurally where possible rather than relying only on prompt discipline or issue discoverability.
+- [ ] Keep executor choice runtime-neutral: ChatGPT, coding agents, API workers, Steward, or humans should implement the same role/state contract.
+- [ ] Decide how ART defines the generic state-machine semantics while Steward (or another runtime) implements dispatch, monitoring, retries, and owner notifications.
+- [ ] Use SABR-Cheyette's recent mixed manual/automatic audit loops as a concrete regression testcase for the design.
+
+This is a proposal, not current normative ART policy. The desired end state is that the owner normally sees the audit/remediation loop only when a genuine owner decision is required or when the loop reaches its final verified outcome.
+
 ## Adaptive independent-auditor count
 
 ### Proposal
