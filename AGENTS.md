@@ -17,6 +17,7 @@ For reference ingestion, read `docs/workflow/reference_ingestion_protocol.md`.
 For learning or relearning a technical topic with the repository owner, read `docs/workflow/learning.md`.
 Before authoring, remediating, auditing, freezing, or reopening an Essence, read `docs/workflow/ESSENCE_AUTHORING_AND_AUDIT.md`.
 For a formal fresh independent pre-freeze audit, reconciliation, or remediation cycle, follow `docs/workflow/INDEPENDENT_PRE_FREEZE_AUDIT.md` as the canonical execution protocol and use `docs/workflow/AUDIT_ROLE_BOOTSTRAP.md` for the minimum role bootstrap contract.
+For formal audit executor/model selection, provenance, and substitution rules, also read `docs/workflow/AUDIT_EXECUTION_POLICY.md`.
 
 `main` is the shared project source of truth. Repository state outranks stale chat history.
 
@@ -30,7 +31,7 @@ For a formal fresh independent pre-freeze audit, reconciliation, or remediation 
 - Before final-head validation, re-read and re-evaluate the repository's canonical current-state artifact (normally `docs/CURRENT_STATE.md`). Update it in the same task when the change materially alters recorded phase/status, completed milestones/capabilities, active decisions, blockers/open questions, immediate next work, authoritative artifacts, or validation/deployment/publication state; otherwise leave it unchanged.
 - Converge semantic edits on the task branch before opening the PR when possible; expensive validation should target the intended final head rather than every intermediate edit.
 - Long tasks MUST leave durable repository/workflow checkpoints sufficient for a new run to resume from exact state without private scratch reasoning.
-- Executor choice is runtime policy: human-supervised ChatGPT, coding agents, API workers, or an orchestrator follow the same repository authority, role boundaries, validation, and Definition of Done.
+- Executor choice is runtime policy: human-supervised ChatGPT, coding agents, API workers, or an orchestrator follow the same repository authority, role boundaries, validation, and Definition of Done. For formal Auditor slots, executor/model selection remains owner-controlled and MUST follow `docs/workflow/AUDIT_EXECUTION_POLICY.md`; executor-neutral semantics do not authorize silent substitution.
 - Do not write directly to `main`, except when bootstrapping an empty repository that has no commit from which a branch can be created.
 - Prefer Safe Patch for narrow edits to tracked UTF-8 files.
 - A frozen Essence is a human/AI executable implementation contract; never fill its gaps from private conversational context.
