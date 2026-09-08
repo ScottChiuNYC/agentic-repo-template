@@ -49,7 +49,19 @@ Any other combination of `model_selection_mode` and `allow_automatic_substitutio
 
 `allow_automatic_substitution` never broadens the choices authorized by `model_selection_mode`. In particular, it cannot convert `exact` or `provider_auto` into an implicit fallback policy.
 
-If the round does not contain a complete durable execution policy, a dispatcher MUST NOT infer one merely from whichever backend is easiest to launch.
+If any required execution-policy field is absent, or an `allowed_set` record lacks its complete approved pair collection, dispatch MUST fail closed with:
+
+```text
+BLOCKED_MISSING_EXECUTION_POLICY
+```
+
+If the fields are present but their values or mode/flag combination violate this policy, dispatch MUST fail closed with:
+
+```text
+BLOCKED_INVALID_EXECUTION_POLICY
+```
+
+A dispatcher MUST NOT infer missing policy merely from whichever backend is easiest to launch.
 
 A repository or orchestrator MAY maintain a persistent owner-approved default execution policy so the owner does not need to select models before every round. A round-specific owner instruction overrides that default.
 
