@@ -74,11 +74,13 @@ Worker boundaries should be explicit:
 - **Auditor**: inspect the immutable audit SHA and seal only its assigned raw-result slot.
 - **Reconciler**: consume sealed slots and publish the canonical verdict/findings/owner-decision set.
 - **Remediator**: implement only the canonical remediation transaction and publish durable completion evidence.
-- **Dispatcher / Orchestrator**: observe durable state, enforce transition preconditions, choose/launch executors, and advance the state machine.
+- **Dispatcher / Orchestrator**: observe durable state, enforce transition preconditions, choose/launch executors within the owner-controlled execution policy, and advance the state machine.
 
 Owner interruption policy should be a first-class runtime mode. A likely default is `full_auto`, where only genuine owner-decision or owner-only-action states interrupt the owner; a `supervised` mode can require approval at selected transitions for debugging or high-risk repositories.
 
 Every machine-created durable object should carry reconstructable provenance where the transport permits it, for example `created_by_role`, `trigger`, `executor`, `parent_round`, and `dispatch_id`. The objective is that a future reader can tell not merely who GitHub attributes the mutation to, but **which workflow role created it and why**.
+
+Formal audit executor/model choice is no longer an unresolved part of this proposal: `docs/workflow/AUDIT_EXECUTION_POLICY.md` makes it owner-controlled and fail-closed. The remaining dispatcher work is to enforce that durable policy rather than silently select or substitute a convenient backend.
 
 ### Questions to resolve before promotion into protocol
 
@@ -87,7 +89,7 @@ Every machine-created durable object should carry reconstructable provenance whe
 - [ ] Define durable provenance fields and how they map onto GitHub issues/PRs versus an external orchestrator state store.
 - [ ] Ensure crash/restart recovery is idempotent: the Dispatcher must reconcile actual GitHub state before creating or launching anything new.
 - [ ] Enforce auditor isolation structurally where possible rather than relying only on prompt discipline or issue discoverability.
-- [ ] Keep executor choice runtime-neutral: ChatGPT, coding agents, API workers, Steward, or humans should implement the same role/state contract.
+- [ ] Keep workflow semantics executor-neutral while formal audit executor/model selection follows owner-controlled durable policy; the Dispatcher must never treat backend availability as substitution authority.
 - [ ] Decide how ART defines the generic state-machine semantics while Steward (or another runtime) implements dispatch, monitoring, retries, and owner notifications.
 - [ ] Use SABR-Cheyette's recent mixed manual/automatic audit loops as a concrete regression testcase for the design.
 
@@ -112,5 +114,5 @@ The goal is to spend additional independent-review capacity when marginal covera
 - [ ] Define objective escalation signals, such as canonical finding count, overlap ratio across auditors, new owner-decision count, or recent rounds with zero/near-zero unique findings.
 - [ ] Preserve the existing invariant that all auditors in one round evaluate the same immutable SHA and remain isolated from sibling findings before sealing.
 - [ ] Measure diminishing returns from additional auditors, including correlated blind spots and reconciliation cost.
-- [ ] Decide whether auditor diversity should include only independent sessions or also model/configuration/reasoning diversity when the execution environment supports it.
+- [ ] Decide how owner-controlled executor/model configuration should express model/configuration/reasoning diversity when the execution environment supports it.
 - [ ] Validate the proposal empirically across several real audit-remediation loops before making it normative ART policy.
