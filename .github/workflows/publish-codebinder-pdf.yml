@@ -92,9 +92,13 @@ jobs:
           cat >> build/codebinder-source/conf.py <<'PYCONF'
           latex_elements = {
               "fontpkg": r"""
+          \usepackage{xeCJK}
           \setmainfont{Noto Serif CJK SC}
           \setsansfont{Noto Sans CJK SC}
           \setmonofont{Noto Sans Mono CJK SC}
+          \setCJKmainfont[Scale=1.2]{Noto Serif CJK SC}
+          \setCJKsansfont[Scale=1.2]{Noto Sans CJK SC}
+          \setCJKmonofont[Scale=1.2]{Noto Sans Mono CJK SC}
           """,
               "preamble": r"""
           \usepackage{fancyhdr}
