@@ -98,9 +98,9 @@ jobs:
           \setmonofont{Noto Sans Mono CJK SC}
           \ifXeTeX
             \usepackage{xeCJK}
-            \setCJKmainfont[Scale=1.2]{Noto Serif CJK SC}
-            \setCJKsansfont[Scale=1.2]{Noto Sans CJK SC}
-            \setCJKmonofont[Scale=1.2]{Noto Sans Mono CJK SC}
+            \setCJKmainfont[Scale=1.1]{Noto Serif CJK SC}
+            \setCJKsansfont[Scale=1.1]{Noto Sans CJK SC}
+            \setCJKmonofont[Scale=1.1]{Noto Sans Mono CJK SC}
           \fi
           """,
               "preamble": r"""
