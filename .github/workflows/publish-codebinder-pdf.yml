@@ -106,7 +106,10 @@ jobs:
           \fi
           \setcounter{tocdepth}{4}
           \setcounter{secnumdepth}{4}
-          \geometry{left=72pt,right=72pt,top=72pt,bottom=90pt,headheight=0pt,headsep=0pt,footskip=8mm}
+          % Keep the 468 pt body width from one-inch left/right margins.
+          % The visible body-plus-page-number height is tuned to
+          % 468 * 201 / 154 = 610.714 pt, matching the BOOX display ratio.
+          \geometry{left=72pt,right=72pt,top=89.43pt,bottom=114.50pt,headheight=0pt,headsep=0pt,footskip=8mm}
           \fancypagestyle{normal}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
           \fancypagestyle{plain}{\fancyhf{}\fancyfoot[C]{\thepage}\renewcommand{\headrulewidth}{0pt}\renewcommand{\footrulewidth}{0pt}}
           \AtBeginDocument{\pagestyle{normal}}
