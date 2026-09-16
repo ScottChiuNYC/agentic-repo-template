@@ -16,6 +16,13 @@ FATAL_LOG_PATTERNS = (
     r"Undefined control sequence",
 )
 
+# These strings are implementation artifacts, not reader content. If they appear
+# in extracted PDF text, Markdown math was converted incorrectly by nbsphinx.
+FORBIDDEN_PDF_TEXT_PATTERNS = (
+    r"nbsphinx\s*[-–—]*\s*math",
+    r"nbsphinx-math",
+)
+
 
 def pdf_pages(path: Path) -> int:
     completed = subprocess.run(["pdfinfo", str(path)], text=True, capture_output=True, check=False)
@@ -25,6 +32,15 @@ def pdf_pages(path: Path) -> int:
     if not match:
         raise RuntimeError("pdfinfo did not report page count")
     return int(match.group(1))
+
+
+def pdf_text(path: Path) -> str:
+    completed = subprocess.run(
+        ["pdftotext", str(path), "-"], text=True, capture_output=True, check=False
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.strip() or "pdftotext failed")
+    return completed.stdout
 
 
 def toc_entries(path: Path) -> int:
@@ -52,6 +68,13 @@ def main() -> int:
             pages = pdf_pages(pdf)
             if pages < args.min_pages:
                 errors.append(f"PDF has {pages} page(s); expected at least {args.min_pages}")
+        except RuntimeError as exc:
+            errors.append(str(exc))
+        try:
+            extracted = pdf_text(pdf)
+            for pattern in FORBIDDEN_PDF_TEXT_PATTERNS:
+                if re.search(pattern, extracted, re.IGNORECASE):
+                    errors.append(f"forbidden rendered-text pattern: {pattern}")
         except RuntimeError as exc:
             errors.append(str(exc))
     entries = toc_entries(toc)
