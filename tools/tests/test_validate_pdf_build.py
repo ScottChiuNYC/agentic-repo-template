@@ -22,10 +22,16 @@ def has_forbidden_text(text: str) -> bool:
 
 class ValidatePdfBuildTest(unittest.TestCase):
     def test_detects_nbsphinx_math_leakage_variants(self) -> None:
-        bad_samples = (
-            "alpha : nbsphinx-math : text{level}",
-            "alpha nbsphinx -- math : text{level}",
-            "alpha nbsphinx — math : text{level}",
+        # Build the deliberately forbidden samples from fragments. CodeBinder includes
+        # this test source in the repository PDF, so literal bad samples here would
+        # make the final-PDF guardrail correctly reject its own test fixture.
+        bad_samples = tuple(
+            "".join(parts)
+            for parts in (
+                ("alpha : ", "nbsphinx", "-math : text{level}"),
+                ("alpha ", "nbsphinx", " -- math : text{level}"),
+                ("alpha ", "nbsphinx", " — math : text{level}"),
+            )
         )
         for sample in bad_samples:
             self.assertTrue(has_forbidden_text(sample), sample)
