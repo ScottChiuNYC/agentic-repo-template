@@ -30,7 +30,9 @@ class CheckMarkdownMathTest(unittest.TestCase):
         self.assertTrue(any("unsupported display-math delimiter" in error and r"\]" in error for error in errors))
 
     def test_ignores_delimiters_in_code(self) -> None:
-        errors = self.validate_text("`\\[literal\\]`\n\n```text\n\\[literal\\]\n```\n")
+        errors = self.validate_text(
+            "`\\[literal\\]`\n\n``\\[literal with ` backtick\\]``\n\n```text\n\\[literal\\]\n```\n"
+        )
         self.assertEqual(errors, [])
 
 
