@@ -8,7 +8,7 @@ import re
 import sys
 
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
-INLINE_CODE_RE = re.compile(r"`[^`]*`")
+INLINE_CODE_RE = re.compile(r"(`+).*?\1")
 UNSUPPORTED_DISPLAY_MATH_RE = re.compile(r"(?<!\\)\\([\[\]])")
 
 
