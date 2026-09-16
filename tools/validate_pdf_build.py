@@ -16,11 +16,10 @@ FATAL_LOG_PATTERNS = (
     r"Undefined control sequence",
 )
 
-# These strings are implementation artifacts, not reader content. If they appear
-# in extracted PDF text, Markdown math was converted incorrectly by nbsphinx.
+# Match leaked nbsphinx math-role syntax, not prose that merely documents the token.
 FORBIDDEN_PDF_TEXT_PATTERNS = (
-    r"nbsphinx\s*[-–—]*\s*math",
-    r"nbsphinx-math",
+    r"nbsphinx\s*[-–—]+\s*math\s*:",
+    r"nbsphinx-math\s*:",
 )
 
 
