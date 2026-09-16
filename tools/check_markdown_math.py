@@ -9,6 +9,7 @@ import sys
 
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
+UNSUPPORTED_DISPLAY_MATH_RE = re.compile(r"(?<!\\)\\([\[\]])")
 
 
 def strip_escaped(text: str) -> str:
@@ -35,6 +36,12 @@ def validate(path: Path) -> list[str]:
             continue
 
         line = INLINE_CODE_RE.sub("", raw)
+        for match in UNSUPPORTED_DISPLAY_MATH_RE.finditer(line):
+            delimiter = "\\" + match.group(1)
+            errors.append(
+                f"{path}:{lineno}: unsupported display-math delimiter '{delimiter}'; use '$$' blocks"
+            )
+
         line = strip_escaped(line)
         display_count = line.count("$$")
         if display_count:
