@@ -22,6 +22,7 @@
 
 - Inline math: `$...$`.
 - Display math: use a standalone `$$...$$` block.
+- Do not use LaTeX-style `\[ ... \]` display delimiters in Markdown; the CodeBinder/nbsphinx path does not reliably preserve them.
 - Do not mix unmatched delimiters.
 - Avoid putting display math inside Markdown tables.
 - Preserve literal currency dollar signs by escaping them when they could be parsed as math.
