@@ -31,7 +31,23 @@ class CheckMarkdownMathTest(unittest.TestCase):
 
     def test_ignores_delimiters_in_code(self) -> None:
         errors = self.validate_text(
-            "`\\[literal\\]`\n\n``\\[literal with ` backtick\\]``\n\n```text\n\\[literal\\]\n```\n"
+            "`\\[literal\\]`\n\n"
+            "``\\[literal with ` backtick\\]``\n\n"
+            "```text\n\\[literal\\]\n```\n\n"
+            "~~~~text\n\\[literal\\]\n~~~~\n"
+        )
+        self.assertEqual(errors, [])
+
+    def test_escaped_and_mismatched_backticks_do_not_hide_delimiters(self) -> None:
+        escaped = self.validate_text("\\` before \\[bad\\] after \\`\n")
+        mismatched = self.validate_text("prefix ``` \\[bad\\] `` suffix\n")
+        self.assertEqual(len(escaped), 2)
+        self.assertEqual(len(mismatched), 2)
+
+    def test_ignores_multiline_inline_code_and_nested_fence_examples(self) -> None:
+        errors = self.validate_text(
+            "``\n\\[literal\\]\n``\n\n"
+            "````markdown\n```text\n\\[literal\\]\n```\n````\n"
         )
         self.assertEqual(errors, [])
 

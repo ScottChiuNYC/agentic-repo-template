@@ -7,8 +7,7 @@ from pathlib import Path
 import re
 import sys
 
-FENCE_RE = re.compile(r"^\s*(```|~~~)")
-INLINE_CODE_RE = re.compile(r"(`+).*?\1")
+FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 UNSUPPORTED_DISPLAY_MATH_RE = re.compile(r"(?<!\\)\\([\[\]])")
 
 
@@ -16,26 +15,98 @@ def strip_escaped(text: str) -> str:
     return re.sub(r"\\.", "", text)
 
 
+def _is_escaped(text: str, index: int) -> bool:
+    backslashes = 0
+    cursor = index - 1
+    while cursor >= 0 and text[cursor] == "\\":
+        backslashes += 1
+        cursor -= 1
+    return backslashes % 2 == 1
+
+
+def _mask_fenced_code(text: str) -> tuple[str, bool]:
+    masked: list[str] = []
+    fence_marker = ""
+
+    for raw_line in text.splitlines(keepends=True):
+        body = raw_line.rstrip("\r\n")
+        newline = raw_line[len(body) :]
+        match = FENCE_RE.match(body)
+
+        if fence_marker:
+            if match:
+                marker, info = match.groups()
+                if (
+                    marker[0] == fence_marker[0]
+                    and len(marker) >= len(fence_marker)
+                    and not info.strip()
+                ):
+                    fence_marker = ""
+            masked.append(" " * len(body) + newline)
+            continue
+
+        if match:
+            fence_marker = match.group(1)
+            masked.append(" " * len(body) + newline)
+        else:
+            masked.append(raw_line)
+
+    return "".join(masked), bool(fence_marker)
+
+
+def _mask_inline_code(text: str) -> str:
+    """Mask valid CommonMark backtick spans while preserving line positions."""
+
+    runs: list[tuple[int, int]] = []
+    cursor = 0
+    while cursor < len(text):
+        if text[cursor] != "`":
+            cursor += 1
+            continue
+        end = cursor + 1
+        while end < len(text) and text[end] == "`":
+            end += 1
+        runs.append((cursor, end))
+        cursor = end
+
+    characters = list(text)
+    run_index = 0
+    while run_index < len(runs):
+        start, opener_end = runs[run_index]
+        if _is_escaped(text, start):
+            run_index += 1
+            continue
+
+        marker_length = opener_end - start
+        closing_index = run_index + 1
+        while closing_index < len(runs):
+            close_start, close_end = runs[closing_index]
+            if close_end - close_start == marker_length:
+                for index in range(start, close_end):
+                    if characters[index] not in "\r\n":
+                        characters[index] = " "
+                run_index = closing_index + 1
+                break
+            closing_index += 1
+        else:
+            run_index += 1
+
+    return "".join(characters)
+
+
+def _mask_protected_regions(text: str) -> tuple[str, bool]:
+    masked, unclosed_fence = _mask_fenced_code(text)
+    return _mask_inline_code(masked), unclosed_fence
+
+
 def validate(path: Path) -> list[str]:
     errors: list[str] = []
     text = path.read_text(encoding="utf-8")
-    in_fence = False
-    fence = ""
+    text, in_fence = _mask_protected_regions(text)
     display_open = False
 
     for lineno, raw in enumerate(text.splitlines(), 1):
-        match = FENCE_RE.match(raw)
-        if match:
-            marker = match.group(1)
-            if not in_fence:
-                in_fence, fence = True, marker
-            elif marker == fence:
-                in_fence, fence = False, ""
-            continue
-        if in_fence:
-            continue
-
-        line = INLINE_CODE_RE.sub("", raw)
+        line = raw
         for match in UNSUPPORTED_DISPLAY_MATH_RE.finditer(line):
             delimiter = "\\" + match.group(1)
             errors.append(
