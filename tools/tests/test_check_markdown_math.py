@@ -38,6 +38,21 @@ class CheckMarkdownMathTest(unittest.TestCase):
         )
         self.assertEqual(errors, [])
 
+    def test_ignores_indented_code_blocks(self) -> None:
+        errors = self.validate_text(
+            "Before\n\n"
+            "    $implementation-contract-convergence\n"
+            "    \\[literal\\]\n"
+            "\t$HOME\n"
+            "\n"
+            "After\n"
+        )
+        self.assertEqual(errors, [])
+
+    def test_indented_code_does_not_hide_following_prose(self) -> None:
+        errors = self.validate_text("    $command\n\n\\[bad\\]\n")
+        self.assertEqual(len(errors), 2)
+
     def test_escaped_and_mismatched_backticks_do_not_hide_delimiters(self) -> None:
         escaped = self.validate_text("\\` before \\[bad\\] after \\`\n")
         mismatched = self.validate_text("prefix ``` \\[bad\\] `` suffix\n")
