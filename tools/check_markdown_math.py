@@ -24,6 +24,37 @@ def _is_escaped(text: str, index: int) -> bool:
     return backslashes % 2 == 1
 
 
+def _mask_indented_code(text: str) -> str:
+    """Mask CommonMark-style indented code blocks while preserving line positions."""
+
+    masked: list[str] = []
+    in_block = False
+    previous_blank = True
+
+    for raw_line in text.splitlines(keepends=True):
+        body = raw_line.rstrip("\r\n")
+        newline = raw_line[len(body) :]
+        is_blank = not body.strip()
+        is_indented = bool(INDENTED_CODE_RE.match(body))
+
+        if in_block:
+            if is_indented or is_blank:
+                masked.append(" " * len(body) + newline)
+                continue
+            in_block = False
+
+        if is_indented and previous_blank:
+            in_block = True
+            masked.append(" " * len(body) + newline)
+            previous_blank = False
+            continue
+
+        masked.append(raw_line)
+        previous_blank = is_blank
+
+    return "".join(masked)
+
+
 def _mask_fenced_code(text: str) -> tuple[str, bool]:
     masked: list[str] = []
     fence_marker = ""
@@ -95,7 +126,8 @@ def _mask_inline_code(text: str) -> str:
 
 
 def _mask_protected_regions(text: str) -> tuple[str, bool]:
-    masked, unclosed_fence = _mask_fenced_code(text)
+    masked = _mask_indented_code(text)
+    masked, unclosed_fence = _mask_fenced_code(masked)
     return _mask_inline_code(masked), unclosed_fence
 
 
