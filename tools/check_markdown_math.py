@@ -35,7 +35,7 @@ def _mask_indented_code(text: str) -> str:
         body = raw_line.rstrip("\r\n")
         newline = raw_line[len(body) :]
         is_blank = not body.strip()
-        is_indented = bool(INDENTED_CODE_RE.match(body))
+        is_indented = body.startswith("    ") or body.startswith("\t")
 
         if in_block:
             if is_indented or is_blank:
