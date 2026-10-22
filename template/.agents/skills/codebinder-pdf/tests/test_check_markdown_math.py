@@ -77,8 +77,7 @@ class CheckMarkdownMathTest(unittest.TestCase):
         self.assertEqual(len(errors), 2)
 
     def test_escaped_and_mismatched_backticks_do_not_hide_delimiters(self) -> None:
-        escaped = self.validate_text("\\` before \\[bad\\] after \`
-")
+        escaped = self.validate_text("\\` before \\[bad\\] after \\`\\n")
         mismatched = self.validate_text("prefix ``` \\[bad\\] `` suffix\n")
         self.assertEqual(len(escaped), 2)
         self.assertEqual(len(mismatched), 2)
