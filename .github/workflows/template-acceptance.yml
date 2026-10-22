@@ -1,0 +1,47 @@
+name: Template Acceptance
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Copier
+        run: python -m pip install 'copier==9.19.1'
+
+      - name: Render ART into a clean downstream directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/art-render"
+          copier copy --defaults . "$target"
+          test -f "$target/.copier-answers.art.yml"
+          test -f "$target/AGENTS.md"
+          test -f "$target/.github/workflows/publish-codebinder-pdf.yml"
+          test -f "$target/.agents/skills/codebinder-pdf/SKILL.md"
+          test ! -e "$target/tools/safe_patch.py"
+          test ! -e "$target/docs/workflow/DURABLE_EXECUTION_PROTOCOL.md"
+
+      - name: Validate rendered skill helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/art-render"
+          cd "$target"
+          skill='.agents/skills/codebinder-pdf'
+          python -m unittest discover -s "$skill/tests" -p 'test_*.py'
+          python -m py_compile             "$skill/scripts/check_markdown_math.py"             "$skill/scripts/disable_pdf_bookmarks.py"             "$skill/scripts/validate_pdf_build.py"             "$skill/scripts/upload_to_google_drive.py"
+          mapfile -t markdown < <(find . -type f -name '*.md' -print)
+          python "$skill/scripts/check_markdown_math.py" "${markdown[@]}"
