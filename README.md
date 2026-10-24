@@ -46,7 +46,7 @@ ART currently owns one repo-local skill:
 .agents/skills/codebinder-pdf/
 ```
 
-It contains the CodeBinder publication rules, optional Google Drive upload, Markdown/math rendering guardrails, deterministic helpers, and regression tests. The generated GitHub Actions workflow consumes that skill directly.
+It contains the CodeBinder publication rules, optional Google Drive upload, Markdown/math rendering guardrails, deterministic helpers, and regression tests. Heavy PDF dependencies are built once into ART's GHCR-hosted CodeBinder builder image; generated workflows pin that image by immutable digest rather than reinstalling TeX/Sphinx on every run.
 
 ## Deliberate omissions
 
