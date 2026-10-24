@@ -74,5 +74,5 @@ jobs:
             lualatex --version | head -n 1
             pdftotext -v 2>&1 | head -n 1
             fc-match "Noto Serif CJK SC" | head -n 1
-            python -c "import googleapiclient, nbsphinx, sphinx, sphinx_copybutton; print('''Python PDF dependencies import successfully''')"
           '
+          docker run --rm "$image" python -c 'import googleapiclient, nbsphinx, sphinx, sphinx_copybutton; print("Python PDF dependencies import successfully")'
