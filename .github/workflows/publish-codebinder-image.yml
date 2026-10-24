@@ -65,6 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           image="${IMAGE_NAME}@${{ steps.build.outputs.digest }}"
+          docker logout ghcr.io
           docker pull "$image"
           docker run --rm "$image" bash -lc '
             set -euo pipefail
