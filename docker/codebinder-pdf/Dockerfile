@@ -24,7 +24,7 @@ RUN apt-get update \
         texlive-xetex \
     && fc-cache -f \
     && python3 -m pip install --break-system-packages --no-cache-dir \
-        'git+https://github.com/ScottChiuNYC/codebinder.git@317333d89183252fa8fb21b3e7168a912053132e' \
+        'git+https://github.com/ScottChiuNYC/codebinder.git@6c7070a25c50af52a2e751323aba92b231d8a411' \
         google-api-python-client \
         google-auth \
         google-auth-httplib2 \
