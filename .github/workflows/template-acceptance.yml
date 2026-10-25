@@ -31,6 +31,8 @@ jobs:
           test -f "$target/AGENTS.md"
           test -f "$target/.github/workflows/publish-codebinder-pdf.yml"
           test -f "$target/.agents/skills/codebinder-pdf/SKILL.md"
+          test -f "$target/.codebinderignore.d/art"
+          test ! -e "$target/.codebinderignore"
           test ! -e "$target/tools/safe_patch.py"
           test ! -e "$target/docs/workflow/DURABLE_EXECUTION_PROTOCOL.md"
 
