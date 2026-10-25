@@ -9,6 +9,8 @@ Its job is deliberately small:
 
 ART does not try to reimplement every useful agent capability.
 
+For the cross-repository ownership model, dependency pinning, Docker/GHCR lifecycle, Copier propagation rules, and cold-start checklist, read [`docs/ecosystem-architecture.md`](docs/ecosystem-architecture.md) before making structural changes across repositories.
+
 ## Copier
 
 ART is designed to be applied alongside an independent language/build-infrastructure Copier template. For example, one project can independently inherit Python/C++ build infrastructure from one template and ART from this template.
