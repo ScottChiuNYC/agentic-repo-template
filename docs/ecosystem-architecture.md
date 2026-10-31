@@ -34,6 +34,10 @@ It owns:
 
 It is deliberately independent from ART. A project may use either template alone or layer both templates into the same repository.
 
+### Coding standards ownership
+
+Language Copier templates own their generated project-local coding conventions in the Project Skeleton Contract. ART only routes agents to the generated contract; it never owns or duplicates language policy. ICC adopts these conventions as Project Boundary guidance for generated code-like declarations, while C2C applies them to code, tests and reviews. No mandatory formatter or formatting-only CI gate is part of the default workflow, and no bulk formatting is authorized by a template update.
+
 ### implementation-convergence
 
 This repository is the semantic authority for the two explicit implementation workflows:
