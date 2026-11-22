@@ -25,6 +25,12 @@ Downstream Copier metadata is stored independently in:
 .copier-answers.art.yml
 ```
 
+## New repository setup
+
+After generating a repository, follow the generated [repository setup checklist](template/.github/REPOSITORY_SETUP.md). Copier does not apply GitHub settings or inherit Actions secrets. The checklist covers `main`, squash merging, automatic deletion of merged branches, minimal Actions permissions, optional Drive secrets, and first-use publication verification.
+
+ART seeds a `.gitignore` for its PDF output and Python caches. An existing `.gitignore` is preserved with `_skip_if_exists`; check and merge any missing ART output rules into that project-owned file instead of overwriting rules from another Copier template.
+
 ## Skill routing
 
 Generated repositories route agents to these canonical external skills rather than vendoring them:

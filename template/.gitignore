@@ -1,0 +1,8 @@
+# ART publication output. Keep these rules when combining Copier templates.
+/build/
+/dist/
+
+# Caches created by the ART Python helpers and tests.
+__pycache__/
+*.py[cod]
+.pytest_cache/

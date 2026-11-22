@@ -5,3 +5,4 @@
 AGENTS.md
 .agents/skills/codebinder-pdf/**
 .github/workflows/publish-codebinder-pdf.yml
+.github/REPOSITORY_SETUP.md

@@ -17,6 +17,7 @@ It owns:
 - the CodeBinder builder Docker image definition;
 - the immutable GHCR image digest embedded in generated PDF workflows;
 - ART-owned PDF review exclusions in `.codebinderignore.d/art`.
+- the generated `.github/REPOSITORY_SETUP.md` checklist and a new-repository `.gitignore` seed for ART publication output.
 
 ART does **not** own the language/build skeleton of a project and does not own ICC/C2C protocol semantics.
 
@@ -134,6 +135,8 @@ docs/development/essence.md (or another declared Essence)
 ```
 
 A template should update only the fragment/files it owns. In particular, do not replace the composable ignore-fragment model with one shared generated `.codebinderignore`.
+
+Git's `.gitignore` is shared project state, not an exclusively ART-owned file. ART seeds it only when absent and preserves existing files with `_skip_if_exists`. Both ART's PDF pipeline and language/build templates can generate `build/` and `dist/`; when adopting or updating ART, verify that these outputs and helper caches are ignored and merge missing rules without replacing unrelated project or language-template rules. The generated setup checklist documents the verification.
 
 ## 4. Review-PDF design intent
 
