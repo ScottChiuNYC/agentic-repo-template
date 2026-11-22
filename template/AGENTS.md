@@ -4,6 +4,8 @@ This repository uses **ART (Agentic Repo Template)** as a small skill router plu
 
 Keep this file concise. Do not preload every referenced skill. Classify the task first, then read only the relevant skill.
 
+For a new or adopted repository, complete `.github/REPOSITORY_SETUP.md`; Copier does not apply GitHub settings or secrets. Preserve an existing `.gitignore` and verify that ART's generated output is ignored.
+
 ## Skill routing
 
 ### Repository contribution / pull requests
@@ -73,3 +75,5 @@ When `docs/development/PROJECT_SKELETON_CONTRACT.md` is present, it owns languag
 - For narrow local edits, prefer the runtime's native patch/edit primitive when available.
 - For connector-only GitHub edits where the API replaces a whole file, bind the write to the current file/blob identity when supported, use an isolated branch, read back the result, and inspect the exact diff before merge.
 - If the outcome of an external mutation is unknown, observe current state before retrying. Do not create duplicate commits, branches, PRs, or side effects by guessing.
+- Merge only the exact PR head SHA that passed applicable checks and diff review. If the head changes, validate the new head; use an expected-head guard when supported.
+- After merge, re-read the intended result on `main`, verify applicable CI/artifacts/publication for the merge SHA, and verify task-branch cleanup. Report a blocked or unverified step explicitly rather than declaring it complete.

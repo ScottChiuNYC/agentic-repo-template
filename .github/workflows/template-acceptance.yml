@@ -32,9 +32,25 @@ jobs:
           test -f "$target/.github/workflows/publish-codebinder-pdf.yml"
           test -f "$target/.agents/skills/codebinder-pdf/SKILL.md"
           test -f "$target/.codebinderignore.d/art"
+          test -f "$target/.gitignore"
+          test -f "$target/.github/REPOSITORY_SETUP.md"
           test ! -e "$target/.codebinderignore"
           test ! -e "$target/tools/safe_patch.py"
           test ! -e "$target/docs/workflow/DURABLE_EXECUTION_PROTOCOL.md"
+
+      - name: Verify ignored output and preserve existing project ignores
+        shell: bash
+        run: |
+          set -euo pipefail
+          target="$RUNNER_TEMP/art-render"
+          git -C "$target" init --quiet
+          git -C "$target" check-ignore build/probe dist/probe .agents/skills/codebinder-pdf/scripts/__pycache__/probe.pyc
+          existing="$RUNNER_TEMP/art-existing"
+          mkdir -p "$existing"
+          printf '%s\n' '# Project and language-template rules' '/custom-output/' '/build/' '/dist/' > "$existing/.gitignore"
+          cp "$existing/.gitignore" "$RUNNER_TEMP/art-existing.gitignore"
+          copier copy --defaults . "$existing"
+          cmp "$existing/.gitignore" "$RUNNER_TEMP/art-existing.gitignore"
 
       - name: Validate rendered skill helpers
         shell: bash
