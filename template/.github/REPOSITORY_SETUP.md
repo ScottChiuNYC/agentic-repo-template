@@ -31,10 +31,11 @@ Secret values are not inherited through either GitHub templates or Copier. Keep 
 
 With no secrets, PDF builds retain their GitHub artifact and skip Drive. All four enable publication from successful `main` runs; a partial set fails the configuration check. PR runs never upload to Drive.
 
-## First-use verification
+## First-use setup and every-merge verification
 
-1. Build a PDF on a PR and inspect the artifact for expected project content.
-2. After squash merge, verify the resulting `main` content, the PDF build for that merge SHA, and source-branch cleanup.
-3. When Drive is configured, verify the upload for that same `main` run.
+1. At first use, build a PDF on a PR and inspect the artifact for expected project content.
+2. **After every merge**, verify the resulting `main` content, the completed PDF workflow and artifact for that exact merge SHA, and source-branch cleanup.
+3. When Drive is configured, confirm that the Google Drive upload step ran successfully for that same `main` run **and independently read back the uploaded Drive file metadata** (file ID, name/SHA, size and destination) before reporting the task complete. A successful PR PDF check, build, or skipped upload is not enough.
+4. When Drive is intentionally not configured, confirm the explicit skip and report that the PDF artifact exists but Google Drive publication is disabled. If required evidence is still pending or inaccessible, report the work as pending/unverified rather than complete.
 
 Each project owns its content-completeness assertions. A structurally valid PDF can still omit a note; add representative-file checks to the project's publication workflow when needed rather than hard-coding domain filenames in ART.
