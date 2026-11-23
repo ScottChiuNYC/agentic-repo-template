@@ -46,6 +46,17 @@ Configuration states:
 
 Only the upload step receives Google credentials. Do not write credential material into the repository or PDF artifact.
 
+## Post-merge verification
+
+For **every merged change**, not just repository setup, the agent's completion gate is defined in `AGENTS.md`. On the exact merged `main` commit:
+
+- Wait for the `Publish CodeBinder PDF` run to finish; confirm PDF build and artifact.
+- If Drive is enabled, verify that `Upload PDF to Google Drive` ran successfully and independently read back the uploaded file using its Drive file ID. Confirm that the file metadata corresponds to the same run/commit and expected folder.
+- If Drive is disabled, confirm the explicit skip; do not present a PDF artifact as a Drive upload.
+- Until verification is complete, clearly report pending/unverified work instead of claiming publication succeeded.
+
+Never request or print Drive secrets when verifying publication.
+
 ## Review surface
 
 By default, tracked semantic and agent-facing repository content remains visible to CodeBinder. Use `.codebinderignore` for generated, transient, secret-bearing, or deliberately non-reviewable material, not simply because a file is primarily read by an AI agent.
