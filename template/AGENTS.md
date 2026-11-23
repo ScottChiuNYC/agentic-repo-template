@@ -67,6 +67,16 @@ https://github.com/ScottChiuNYC/agentic-repo-template/blob/main/docs/ecosystem-a
 
 When `docs/development/PROJECT_SKELETON_CONTRACT.md` is present, it owns language-level coding standards, including Google C++ and PEP 8 where applicable and any project-specific compatibility exceptions. Read it for declarations, source, tests and examples, including when using ICC/C2C. ART does not override project-local policy. Do not run automatic formatters, add mandatory formatter-only CI, or mass-reformat unrelated code. Review modified lines and preserve intentional mathematical alignment.
 
+## Post-merge publication completion gate (every merged change)
+
+For repositories with ART's generated PDF workflow, **do not report a merged task as complete** just because the PR checks passed, the PR merged, or a PDF artifact was built. This applies to routine content changes, not only first-time repository setup.
+
+1. Identify the merge commit SHA on `main` and the completed `Publish CodeBinder PDF` run for that exact `main` SHA. A PR validation run does not publish to Google Drive.
+2. Confirm that the PDF was built and its GitHub Actions artifact exists. When Google Drive publication is enabled, also confirm that the upload step actually ran successfully **and independently verify the file exists in Google Drive** (for example, read its Drive file metadata using the uploaded file ID and check its name/SHA, size, and destination folder). A green PDF build, workflow summary, or a skipped upload step alone is not sufficient evidence of Drive publication.
+3. When Google Drive is intentionally not configured, verify that publication was explicitly disabled/skipped and state this distinction. Also verify the intended changes on `main` and task-branch cleanup before reporting completion.
+
+If a required workflow, upload, independent Drive check, or branch-cleanup verification is pending, failing, or inaccessible, continue investigating where possible and **report the task as pending or unverified**; do not claim successful publication. Never expose Drive credentials.
+
 ## Minimal operating rules
 
 - Prefer mature existing skills and native runtime tools over repository-specific reinvention.
