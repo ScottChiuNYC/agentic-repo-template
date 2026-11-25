@@ -7,6 +7,7 @@ CodeBinder/nbsphinx/LaTeX see the corresponding PNG image references.
 from __future__ import annotations
 
 import argparse
+import hashlib
 from pathlib import Path
 import re
 import subprocess
@@ -90,7 +91,9 @@ def render_markdown(
             if not source:
                 raise ValueError(f"Empty Mermaid fence in {path} at line {i+1}")
             index += 1
-            filename = f"{path.stem}-mermaid-{index:03d}.png"
+            # ASCII filename avoids broken Markdown links for names with spaces.
+            file_key = hashlib.sha256(path.name.encode("utf-8")).hexdigest()[:12]
+            filename = f"mermaid-{file_key}-{index:03d}.png"
             output = path.with_name(filename)
             if output.exists():
                 raise FileExistsError(f"Mermaid output already exists: {output}")
