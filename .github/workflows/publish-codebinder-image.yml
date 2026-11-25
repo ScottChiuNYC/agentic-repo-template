@@ -77,3 +77,13 @@ jobs:
             fc-match "Noto Serif CJK SC" | head -n 1
           '
           docker run --rm "$image" python -c 'import googleapiclient, nbsphinx, sphinx, sphinx_copybutton; print("Python PDF dependencies import successfully")'
+          # Fail publication unless the built image renders a real Mermaid diagram
+          # as the non-root UID used by downstream PDF workflows.
+          printf '%s\n' 'classDiagram' '  Model <|-- Cheyette' > "$RUNNER_TEMP/mermaid-smoke.mmd"
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp/art-home \
+            -v "$RUNNER_TEMP:/work" -w /work \
+            "$image" mmdc -p /etc/mermaid-puppeteer.json \
+              -i mermaid-smoke.mmd -o mermaid-smoke.png -b white
+          python -c 'from pathlib import Path; p=Path("$RUNNER_TEMP/mermaid-smoke.png"); assert p.is_file() and p.read_bytes().startswith(bytes.fromhex("89504e470d0a1a0a")) and p.stat().st_size > 1000; print("Mermaid PNG smoke test passed")'

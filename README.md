@@ -56,6 +56,10 @@ ART currently owns one repo-local skill:
 
 It contains the CodeBinder publication rules, optional Google Drive upload, Markdown/math rendering guardrails, deterministic helpers, and regression tests. Heavy PDF dependencies are built once into ART's GHCR-hosted CodeBinder builder image; generated workflows pin that image by immutable digest rather than reinstalling TeX/Sphinx on every run.
 
+### Mermaid diagrams in PDF
+
+Write ordinary fenced `mermaid` diagrams in tracked Markdown. GitHub displays them natively. Before CodeBinder conversion, the ART PDF workflow renders these fences to PNGs and replaces them with image links **only in the tracked-files-only staging copy**. The original Markdown remains the single source of truth; a rendering failure fails the PDF build instead of silently publishing diagram source code. Mermaid CLI and its headless browser live in the immutable PDF builder image.
+
 ## Deliberate omissions
 
 ART v1 does **not** carry forward the Archive's Steward framework, Durable Execution protocol, reference-ingestion/OCR stack, learning workflow, or custom Safe Patch / Remote Safe Patch infrastructure.

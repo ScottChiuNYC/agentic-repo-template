@@ -6,6 +6,7 @@
 skill/tool validation
 -> tracked-files-only staging tree
 -> publication-only Markdown math normalization
+-> publication-only Mermaid fences rendered to PNG and referenced in staged Markdown
 -> CodeBinder conversion
 -> Sphinx / LaTeX build
 -> structural and rendered-text PDF validation
@@ -16,6 +17,10 @@ skill/tool validation
 The staging tree is created from `git archive HEAD`. Publication compatibility transformations apply only there and never mutate repository authority such as a Frozen Essence.
 
 The workflow does not execute project notebooks or application/research code merely to create the PDF.
+
+## Mermaid diagrams
+
+Fenced `mermaid` blocks in tracked Markdown are the editable source, including on GitHub. During PDF publication, `render_mermaid.py` uses the pinned image's Mermaid CLI to produce PNG assets and replace only the staged Markdown fences with relative image references. CodeBinder already copies PNG assets; nbsphinx/LaTeX then includes images instead of code. An invalid diagram or missing renderer fails the build, and the generated images are never committed.
 
 ## Triggers
 
