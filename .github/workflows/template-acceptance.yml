@@ -30,6 +30,7 @@ jobs:
           test -f "$target/.copier-answers.art.yml"
           test -f "$target/AGENTS.md"
           test -f "$target/.github/workflows/publish-codebinder-pdf.yml"
+          grep -Fq 'numbers=left,numbersep=6pt,firstnumber=1' "$target/.github/workflows/publish-codebinder-pdf.yml"
           test -f "$target/.agents/skills/codebinder-pdf/SKILL.md"
           test -f "$target/.agents/skills/codebinder-pdf/scripts/render_mermaid.py"
           test -f "$target/.agents/skills/codebinder-pdf/tests/test_render_mermaid.py"
