@@ -93,6 +93,9 @@ jobs:
           cp "$skill/scripts/sphinx/conf.py" build/codebinder-source/conf.py
           cat >> build/codebinder-source/conf.py <<'PYCONF'
           latex_elements = {
+              # Sphinx's fancyvrb setting: number only PDF code/literal blocks.
+              # Each listing starts at 1; Markdown and source files are unchanged.
+              "fvset": r"\fvset{fontsize=auto,numbers=left,numbersep=6pt,firstnumber=1}",
               "fontpkg": r"""
           \usepackage{iftex}
           \setmainfont{Noto Serif CJK SC}
