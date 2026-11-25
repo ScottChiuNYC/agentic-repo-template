@@ -31,6 +31,8 @@ jobs:
           test -f "$target/AGENTS.md"
           test -f "$target/.github/workflows/publish-codebinder-pdf.yml"
           test -f "$target/.agents/skills/codebinder-pdf/SKILL.md"
+          test -f "$target/.agents/skills/codebinder-pdf/scripts/render_mermaid.py"
+          test -f "$target/.agents/skills/codebinder-pdf/tests/test_render_mermaid.py"
           test -f "$target/.codebinderignore.d/art"
           test -f "$target/.gitignore"
           test -f "$target/.github/REPOSITORY_SETUP.md"
@@ -63,6 +65,6 @@ jobs:
           cd "$target"
           skill='.agents/skills/codebinder-pdf'
           python -m unittest discover -s "$skill/tests" -p 'test_*.py'
-          python -m py_compile             "$skill/scripts/check_markdown_math.py"             "$skill/scripts/disable_pdf_bookmarks.py"             "$skill/scripts/validate_pdf_build.py"             "$skill/scripts/upload_to_google_drive.py"
+          python -m py_compile             "$skill/scripts/render_mermaid.py"             "$skill/scripts/check_markdown_math.py"             "$skill/scripts/disable_pdf_bookmarks.py"             "$skill/scripts/validate_pdf_build.py"             "$skill/scripts/upload_to_google_drive.py"
           mapfile -t markdown < <(find . -type f -name '*.md' -print)
           python "$skill/scripts/check_markdown_math.py" "${markdown[@]}"
