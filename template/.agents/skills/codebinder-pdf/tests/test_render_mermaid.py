@@ -46,12 +46,14 @@ class TestMermaidRender(unittest.TestCase):
         self.assertEqual(count, 2)
         after = self.path.read_text(encoding="utf-8")
         self.assertIn("```cpp\nint main()", after)
-        self.assertIn("![Mermaid diagram 1](patterns-mermaid-001.png)", after)
-        self.assertIn("![Mermaid diagram 2](patterns-mermaid-002.png)", after)
+        images = sorted(self.root.glob("mermaid-*.png"))
+        self.assertEqual(len(images), 2)
+        self.assertIn(f"![Mermaid diagram 1]({images[0].name})", after)
+        self.assertIn(f"![Mermaid diagram 2]({images[1].name})", after)
         self.assertNotIn("flowchart LR", after)
         self.assertEqual(len(self.seen), 2)
         self.assertEqual(
-            (self.root / "patterns-mermaid-001.png").read_bytes(), PNG
+            images[0].read_bytes(), PNG
         )
 
     def test_inner_mermaid_example_is_not_rendered(self):
