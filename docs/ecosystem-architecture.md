@@ -16,6 +16,7 @@ It owns:
 - the repository-local CodeBinder PDF skill and publication workflow;
 - the CodeBinder builder Docker image definition;
 - the immutable GHCR image digest embedded in generated PDF workflows;
+- publication-only Markdown math normalization and Mermaid-to-PNG rendering in disposable PDF staging;
 - ART-owned PDF review exclusions in `.codebinderignore.d/art`.
 - the generated `.github/REPOSITORY_SETUP.md` checklist and a new-repository `.gitignore` seed for ART publication output.
 
@@ -63,7 +64,7 @@ It owns:
 - copied assets;
 - the optional Sphinx extension used by the PDF pipeline.
 
-CodeBinder does **not** own GitHub Actions publication, Google Drive credentials, the ART Docker image, or downstream template provenance.
+CodeBinder does **not** own GitHub Actions publication, Google Drive credentials, the ART Docker image, or downstream template provenance. In particular, Mermaid rendering for review PDFs is an **ART publication transform**, not a built-in CodeBinder Markdown renderer.
 
 ## 2. How the pieces compose
 
@@ -86,24 +87,36 @@ ICC and C2C are loaded by the generated ART skill router from the canonical `imp
 The review PDF path is:
 
 ```text
-tracked downstream repository
+tracked downstream repository (source Markdown is immutable)
         |
-        | .gitignore
-        | optional project-owned .codebinderignore
-        | template-owned .codebinderignore.d/* fragments
+        | git archive HEAD
         v
-CodeBinder
+disposable tracked-files-only staging tree
         |
+        | publication-only Markdown math normalization
+        | Mermaid fenced blocks -> PNG + relative image links
+        |   (mmdc + headless Chromium from pinned ART builder)
+        | source files in repository remain untouched
         v
-Sphinx / nbsphinx / LaTeX
+CodeBinder (discovery, ignore fragments, notebooks, copied PNG assets)
+        |
+        | .codebinderignore + .codebinderignore.d/* determine review scope
+        v
+Sphinx / nbsphinx / LaTeX (embedded PNGs, not Mermaid source)
         |
         v
 validated repository PDF
         |
-        +--> GitHub Actions artifact
+        +--> GitHub Actions artifact (PR and main)
         |
         +--> optional Google Drive publication on main
 ```
+
+GitHub renders the tracked `mermaid` fenced blocks directly. ART instead renders
+them **only in the staging copy**, before CodeBinder runs. The same Markdown
+remains the single editable diagram source for GitHub and PDF, without checking
+generated PNGs into Git. If a diagram cannot be rendered, the build fails
+rather than quietly publishing the Mermaid source as a code listing.
 
 ## 3. Authority and ownership rules
 
@@ -168,6 +181,8 @@ docker/codebinder-pdf/Dockerfile
 ```
 
 The Dockerfile pins CodeBinder to an immutable Git commit. The ART image workflow builds the image in GitHub Actions, publishes it to GHCR, emits provenance and an SBOM, and records the resulting immutable image digest.
+
+The image includes the Mermaid CLI and its headless Chromium runtime; the image publication workflow smoke-tests an actual Mermaid-to-PNG render before downstream adoption.
 
 The generated downstream workflow pins the final image by digest:
 
@@ -234,7 +249,9 @@ If CodeBinder semantics must change first, use the CodeBinder playbook above. Th
 
 A unit test in one repository proves only that repository's local contract.
 
-Cross-repository behavior requires a real consumer check when the change crosses a boundary. Examples include:
+Cross-repository behavior requires a real consumer check when the change crosses a boundary. For Mermaid, test the conversion script and the image's actual PNG output, then verify a downstream PDF **contains rendered diagrams** (not just that PDF validation exits successfully); when Drive publication is enabled, independently read back the uploaded file for the exact merged commit.
+
+Examples include:
 
 - CodeBinder discovery/ignore semantics;
 - builder-image dependency changes;
