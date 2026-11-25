@@ -86,4 +86,4 @@ jobs:
             -v "$RUNNER_TEMP:/work" -w /work \
             "$image" mmdc -p /etc/mermaid-puppeteer.json \
               -i mermaid-smoke.mmd -o mermaid-smoke.png -b white
-          python -c 'from pathlib import Path; p=Path("$RUNNER_TEMP/mermaid-smoke.png"); assert p.is_file() and p.read_bytes().startswith(bytes.fromhex("89504e470d0a1a0a")) and p.stat().st_size > 1000; print("Mermaid PNG smoke test passed")'
+          python -c 'from pathlib import Path; import os; p=Path(os.environ["RUNNER_TEMP"]) / "mermaid-smoke.png"; assert p.is_file() and p.read_bytes().startswith(bytes.fromhex("89504e470d0a1a0a")) and p.stat().st_size > 1000; print("Mermaid PNG smoke test passed")'
