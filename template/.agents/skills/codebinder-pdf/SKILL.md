@@ -12,6 +12,7 @@ Use progressive disclosure:
 
 - For publication behavior, GitHub Actions, artifacts, and Google Drive configuration, read `references/publication.md`.
 - For Markdown math rules and the rendered-math regression guardrail, read `references/math-rendering.md`.
+- For Mermaid diagrams, keep fenced `mermaid` source in tracked Markdown. The PDF workflow converts these fences into PNG files **only in its disposable staging tree**, before CodeBinder conversion. GitHub continues to render the original diagrams.
 - Deterministic helpers live under `scripts/`.
 - Regression tests for the helpers live under `tests/`.
 
