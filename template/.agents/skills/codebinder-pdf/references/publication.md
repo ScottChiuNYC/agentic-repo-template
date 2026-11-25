@@ -18,6 +18,10 @@ The staging tree is created from `git archive HEAD`. Publication compatibility t
 
 The workflow does not execute project notebooks or application/research code merely to create the PDF.
 
+## PDF code-block line numbers
+
+All rendered PDF code/literal blocks use the Sphinx LaTeX builder's `latex_elements['fvset']` option (`fancyvrb`): line numbers appear on the left, restart at 1 for each listing, and do not affect normal prose or Mermaid diagrams. Markdown source files and CodeBinder conversion are unchanged. The generated PDF workflow owns this setting, so downstream repositories receive it through Copier; the PDF builder image needs no rebuild.
+
 ## Mermaid diagrams
 
 Fenced `mermaid` blocks in tracked Markdown are the editable source, including on GitHub. During PDF publication, `render_mermaid.py` uses the pinned image's Mermaid CLI to produce PNG assets and replace only the staged Markdown fences with relative image references. CodeBinder already copies PNG assets; nbsphinx/LaTeX then includes images instead of code. An invalid diagram or missing renderer fails the build, and the generated images are never committed.
